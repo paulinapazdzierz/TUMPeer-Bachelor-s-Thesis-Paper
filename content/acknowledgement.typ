@@ -1,7 +1,1 @@
-First, I'd like to thank coffee for fueling my brain cells and making this thesis possible.
-
-A big shoutout to my supervisor for your patience and for not laughing (too hard) at my wild ideas.
-
-To my family, your snack supplies and constant reminders to "just finish it already" were invaluable.
-
-Finally, to my pet, your keyboard sit-ins ensured I took breaks, whether I wanted to or not.
+I would like to sincerely thank my supervisor, Dr. Santiago Berrezueta, for his valuable support and guidance, and encouragement throughout the development of this thesis. I am also grateful to Prof. Dr. Stefan Wagner for examining this work and providing constructive feedback. Lastly, I want to thank Klaudia Pazdzierz, responsible for the frontend of the platform, and Ivan Parmacli, responsible for deployment and security, for the great collaboration throughout this project.

@@ -2,25 +2,25 @@
 
 = Introduction
 #TODO[
-  Introduce the topic of your thesis, e.g. with a little historical overview.
+  Introduce the topic of peer review in educational environments and the role of backend services in supporting scalable assessment workflows. Briefly describe TUMPeer and the context of this thesis within the 3-person team project.
 ]
 
 == Problem
 #TODO[
-  Describe the problem that you like to address in your thesis to show the importance of your work. Focus on the negative symptoms of the currently available solution.
+  Describe the lack of a TUM-tailored, automated peer review backend. Existing platforms (Canvas, Artemis) either do not fit the TUM course structure or lack the automation needed for large-scale courses. Focus on the concrete pain points: manual review allocation, no rubric-based grading, no outlier detection in peer scores.
 ]
 
 == Motivation
 #TODO[
-  Motivate scientifically why solving this problem is necessary. What kind of benefits do we have by solving the problem?
+  Motivate why a scalable backend for rubric-driven peer assessment is valuable. Reference research showing peer review develops critical thinking, and that peer grades can approximate instructor grades with moderate accuracy (cite Berrezueta-Guzman et al.). Highlight benefits: automation, fairness, scalability.
 ]
 
 == Objectives
 #TODO[
-  Describe the research goals and/or research questions and how you address them by summarizing what you want to achieve in your thesis, e.g. developing a system and then evaluating it.
+  State the concrete objectives of this thesis: design and implement the backend of TUMPeer, including authentication, course and assignment management, file submission handling, fair review allocation, automated status management, and rubric-based grading with outlier detection. Clarify scope: backend only, no frontend or deployment.
 ]
 
 == Outline
 #TODO[
-  Describe the outline of your thesis
+  Describe the structure of this thesis chapter by chapter: Background (Ch. 2), Related Work (Ch. 3), Requirements (Ch. 4), Architecture (Ch. 5), Implementation (Ch. 6), Summary (Ch. 7).
 ]
