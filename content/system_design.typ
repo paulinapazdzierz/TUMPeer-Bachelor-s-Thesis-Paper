@@ -19,31 +19,31 @@ This chapter describes the architectural design of the TUMPeer backend. Architec
 
 Design goals translate the quality attributes from Chapter 4 into concrete architectural priorities. Where goals conflict, the following order of priority applies.
 
-*DG1 -- Separation of Concerns.* The backend is structured in four layers: security, controller, service, and repository. Each layer has a single responsibility and communicates only with the layer directly below it. This supports QA5 (maintainability) and makes the service layer independently testable, at the cost of some indirection for simple data-pass-through operations.
+*DG1 -- Separation of Concerns.* The backend is structured in four layers: security, controller, service, and repository. Each layer has a single responsibility and communicates only with the layer directly below it. This supports QA5 (Maintainability) and makes the service layer independently testable, at the cost of some indirection for simple data-pass-through operations.
 
-*DG2 -- Stateless REST API with Session-Based Authentication.* Each HTTP request carries all the context the backend needs to process it, except for the session identifier held in a cookie. This design satisfies QA4 (scalability) by avoiding server-side affinity for most operations. The design uses session-based authentication rather than stateless tokens for simplicity and to enable server-side session invalidation, which C1 and the concurrent-session limit in FR2 require. The trade-off is that horizontal scaling requires a shared session store, which is acceptable for the current deployment scale.
+*DG2 -- Stateless REST API with Session-Based Authentication.* Each HTTP request carries all the context the backend needs to process it, except for the session identifier held in a cookie. This design supports QA4 (Scalability) by avoiding server-side affinity for most operations. The design uses session-based authentication rather than stateless tokens for simplicity and to enable server-side session invalidation, which the concurrent-session limit in FR2 requires. The trade-off is that horizontal scaling requires a shared session store, which is acceptable for the current deployment scale.
 
-*DG3 -- Scheduler-Driven Status Automation.* A background scheduler that runs every 60 seconds decouples time-based state changes from request handling. This satisfies QA2 (reliability) without requiring clients to trigger transitions and avoids race conditions that would arise if the system performed deadline checks only at request time. The trade-off is a maximum latency of 60 seconds between a deadline passing and the corresponding status change.
+*DG3 -- Scheduler-Driven Status Automation.* A background scheduler that runs every 60 seconds decouples time-based state changes from request handling. This supports QA2 (Reliability) without requiring clients to trigger transitions and avoids race conditions that would arise if the system performed deadline checks only at request time. The trade-off is a maximum latency of 60 seconds between a deadline passing and the corresponding status change.
 
-*DG4 -- Relational Data Model with Schema Versioning.* The backend persists all application state in a normalised PostgreSQL schema that Flyway manages through versioned migrations. This satisfies QA3 (correctness) by enforcing referential integrity at the database level and provides a reproducible schema evolution history. The trade-off is the overhead of schema migration management compared to a schema-less approach.
+*DG4 -- Relational Data Model with Schema Versioning.* The backend persists all application state in a normalised PostgreSQL schema that Flyway manages through versioned migrations. This supports QA3 (Correctness) by enforcing referential integrity at the database level and provides a reproducible schema evolution history. The trade-off is the overhead of schema migration management compared to a schema-less approach.
 
 == Subsystem Decomposition <sec-subsystem-decomposition>
 
-The deployment context diagram below shows the operational environment in which the backend runs: HTTP requests arrive through an NGINX reverse proxy, the backend communicates with a PostgreSQL database, and it sends email through Gmail SMTP. The configuration of the reverse proxy and the deployment infrastructure are outside the scope of this thesis. The same applies to the React frontend, which consumes the backend API but whose implementation is not covered here. The remainder of this section describes the internal structure of the backend exclusively.
+The deployment diagram below shows the operational environment in which the backend runs: HTTP requests arrive through an NGINX reverse proxy, the backend communicates with a PostgreSQL database, and it sends email through Gmail SMTP.
 
 #pagebreak()
 #diagram(
   pad(bottom: 1em, image("/figures/componentdagramfinal.drawio.png", width: 100%)),
-  caption: "Deployment context of the TUMPeer backend. The Spring Boot application runs inside a Docker container and is reached through an NGINX reverse proxy. It communicates with a PostgreSQL database container, sends email via Gmail SMTP, and stores uploaded submission files in a Docker volume (uploads_data). The configuration of NGINX, Docker, and the deployment infrastructure are outside the scope of this thesis.",
-  short-caption: "Deployment context of the TUMPeer backend",
-)
+  caption: "Deployment diagram of the TUMPeer backend. The Spring Boot application runs inside a Docker container and is reached through an NGINX reverse proxy. It communicates with a PostgreSQL database container, sends email via Gmail SMTP, and stores uploaded submission files in a Docker volume (uploads_data). The configuration of NGINX, Docker, and the deployment infrastructure are outside the scope of this thesis.",
+  short-caption: "Deployment diagram of the TUMPeer backend",
+) <fig-deployment-context>
 #pagebreak()
 
-The backend is structured as a four-layer architecture, visible in Figure 2 within the `spring_backend` component. Each incoming HTTP request traverses the layers from top to bottom; responses travel back in the opposite direction.
+The backend is structured as a four-layer architecture, visible in @fig-deployment-context within the `spring_backend` component. Each incoming HTTP request traverses the layers from top to bottom; responses travel back in the opposite direction.
 
 The *Security Layer* uses Spring Security to handle every request before it reaches any application logic. It validates the JSESSIONID session cookie, establishes the authenticated principal in the security context, and enforces CORS policy. Rate limiting runs at the filter level via Bucket4j: the login endpoint (`/api/auth/login`) allows at most 20 requests per minute per IP; all other API endpoints allow at most 200 requests per minute per IP. HTTPS termination and IP-level rate limiting are handled by the NGINX reverse proxy in front of the backend, so the security layer deals only with application-level concerns.
 
-The *Controller Layer* maps HTTP endpoints to application operations. Each controller class groups a cohesive set of endpoints -- for example, `AssignmentController` handles all assignment lifecycle operations. Controllers are responsible for deserialising request bodies, extracting path and query parameters, invoking the appropriate service method, and serialising the response. They also perform role checks and validate that the requesting user is authorised for the specific resource (for example, that a student belongs to the course whose assignment they are accessing). Controllers do not contain business logic.
+The *Controller Layer* maps HTTP endpoints to application operations. Each controller class groups a cohesive set of endpoints -- for example, `AssignmentController` handles all assignment lifecycle operations. Controllers are responsible for deserialising request bodies, extracting path and query parameters, invoking the appropriate service method, and serialising the response. Where required, controllers validate that the requesting user is enrolled in the relevant course before proceeding. Controllers do not contain business logic.
 
 The *Service Layer* contains all business logic. This includes the review allocation algorithm, the ±20pp outlier grading rule, deadline enforcement decisions, and status transition logic. Spring injects service beans into controllers. The service layer is the only layer that coordinates between multiple repositories or applies rules that span more than one entity.
 
@@ -53,19 +53,19 @@ Two cross-cutting subsystems operate across layers. The *email subsystem* uses S
 
 == Persistent Data Management <sec-data-model>
 
-The backend persists all application state in a PostgreSQL 17 database. Flyway manages the schema by applying versioned SQL migration scripts on application startup. This guarantees a reproducible schema at every deployment and provides a full history of schema changes. Hibernate, configured through Spring Data JPA, maps the relational schema to Java entity classes and translates JPQL and method-name-derived queries to SQL.
+The backend persists all application state in a PostgreSQL 17 database. Flyway manages the schema by applying versioned SQL migration scripts on application startup. This produces a reproducible schema at every deployment and provides a full history of schema changes. Hibernate, configured through Spring Data JPA, maps the relational schema to Java entity classes and translates JPQL and method-name-derived queries to SQL. The full entity model is shown in @fig-er-diagram.
 
 #pagebreak()
 #diagram(
   pad(bottom: 1em, image("/figures/tumpeer-er-diagram-TUMPeer ER Diagram.drawio.png", width: 120%)),
   caption: "Entity model of the TUMPeer backend. The diagram shows all eleven entities (AppUser, Course, CourseMember, Assignment, Rubric, RubricQuestion, Submission, SubmissionGrade, ReviewAssignment, Review, ReviewScore) and their relationships.",
   short-caption: "TUMPeer entity model",
-)
+) <fig-er-diagram>
 #pagebreak()
 
 The domain model consists of eleven entities. `AppUser` represents a platform user with a TUM email address, a matriculation identifier, and a global role. `Course` groups assignments under a semester context. `CourseMember` is a join entity that records the role a specific user holds in a specific course; its primary key is the composite of `courseId` and `userId`. This design allows a user to hold different roles in different courses simultaneously.
 
-`Assignment` belongs to a course and stores the submission window, the review window, the reviewer count configuration, and file constraints. Each assignment has exactly one `Rubric`, which in turn owns an ordered list of `RubricQuestion` records. Each question defines a description and a `maxPoints` value that determines both the scoring scale and the maximum contribution of that question to the total rubric score.
+`Assignment` belongs to a course and stores the submission window, the review window, the reviewer count configuration, and file constraints. Each assignment has exactly one `Rubric`, which in turn owns an ordered list of `RubricQuestion` records. Each question defines a description and a type: either a Scale (1-to-10) scored question or an open comment question. Only scored questions contribute to the grade calculation.
 
 `Submission` records a student's uploaded file for an assignment, together with the file metadata and the current submission status. `SubmissionGrade` stores the computed final grade for a submission, the optional instructor score, the instructor comment, and a `calculation` field that records which branch of the grading rule was applied. The separation of `Submission` and `SubmissionGrade` allows the submission record to exist before any grading takes place.
 
@@ -75,9 +75,9 @@ The backend stores and serialises all timestamp columns in the Europe/Berlin tim
 
 == Access Control <sec-access-control>
 
-TUMPeer uses two roles: STUDENT and INSTRUCTOR. Roles are scoped to individual courses: a user may be an INSTRUCTOR in one course and a STUDENT in another. This design directly supports the tutor role common in university settings, where a teaching assistant manages a course section while simultaneously attending another as a student. Each role grants a distinct set of permissions within that course: INSTRUCTOR members create and manage assignments, trigger grade release, and view aggregate statistics, while STUDENT members submit work, conduct peer reviews, and view their own results. A user who holds both roles across different courses receives the corresponding permissions and interface view for each course independently. In addition, each `AppUser` record carries a `globalRole` field that reflects the highest role the user holds across all their course memberships. The `globalRole` is recalculated whenever a course membership is created or deleted.
+TUMPeer uses two roles: STUDENT and INSTRUCTOR. Roles are scoped to individual courses: a user may be an INSTRUCTOR in one course and a STUDENT in another. This design directly supports the tutor role common in university settings, where a teaching assistant manages a course section while simultaneously attending another as a student. Each role grants a distinct set of permissions within that course: INSTRUCTOR members create and manage assignments, trigger grade release, and view aggregate statistics, while STUDENT members submit work, conduct peer reviews, and view their own results. A user who holds both roles across different courses receives the corresponding permissions and interface view for each course independently. Each `AppUser` record carries a `globalRole` field that reflects the highest role the user holds across all their course memberships. The `globalRole` is recalculated whenever a course membership is created or deleted.
 
-Spring Security manages session state at the HTTP level. Each request carries a `JSESSIONID` cookie that Spring Security uses to restore the authenticated principal. Controller methods apply role-based checks: before performing a course-level operation, the controller verifies that the authenticated user holds the required role in that specific course. This per-resource check is necessary because a user's global role does not determine their permissions in a given course.
+Spring Security manages session state at the HTTP level. Each request carries a `JSESSIONID` cookie that Spring Security uses to restore the authenticated principal. Where required, controllers verify that the requesting user holds an active membership in the relevant course before proceeding with the operation.
 
 Session management applies several constraints derived from FR2. The backend binds sessions to an HTTP-only cookie, preventing client-side JavaScript access. The session timeout is 30 minutes by default, or 30 days when the user selects the extended-persistence option at login. The backend maintains a limit of five concurrent sessions per user: when a sixth session is created, the oldest active session is invalidated.
 

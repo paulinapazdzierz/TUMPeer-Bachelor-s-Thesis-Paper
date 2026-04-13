@@ -6,9 +6,9 @@ This chapter describes what the TUMPeer backend must accomplish, independently o
 
 == Overview
 
-The TUMPeer backend mediates the full peer review lifecycle: from course setup and user registration, through file submission and review assignment, to grade calculation and result release. The backend enforces all business rules server-side, including deadline enforcement and grading logic, and exposes these capabilities through a REST API consumed by the frontend.
+The TUMPeer backend mediates the full peer review lifecycle: from course setup and user registration, through file submission and review assignment, to grade calculation and result release. The backend enforces business rules server-side, including deadline enforcement and grading logic, and exposes these capabilities through a REST API consumed by the frontend.
 
-A successful backend implementation must satisfy three criteria. First, each functional requirement described in this chapter must be realised and verifiable. Second, the quality attributes must hold under normal operating conditions at TUM course scale. Third, the system must correctly enforce the constraints imposed by TUM's academic context throughout the entire lifecycle.
+The backend implementation is evaluated against three areas. Each functional requirement described in this chapter should be realised and verifiable. The quality attributes should hold under normal operating conditions at TUM course scale. The system should enforce the constraints imposed by TUM's academic context throughout the lifecycle.
 
 == Proposed System
 
@@ -16,25 +16,25 @@ A successful backend implementation must satisfy three criteria. First, each fun
 
 The following ten requirements define the capabilities the backend must provide.
 
-*FR1 -- Register User.* The system shall allow a user to create an account by providing a TUM-formatted email address, a matriculation identifier, and a password. Registration follows a two-step email verification flow: the system sends a one-time code to the provided address, and the account is activated only after the user submits the correct code within the validity window. The system also provides a password reset flow via a time-limited token sent to the registered email address.
+*FR1 -- Register User.* The system shall allow a user to create an account by providing a TUM-formatted email address, a matriculation identifier, and a password. Registration follows a two-step email verification flow: the system sends a one-time code to the provided address, and the account is activated only after the user submits the correct code within the validity window. A password reset flow is available via a time-limited token sent to the registered email address.
 
 *FR2 -- Authenticate User.* The system shall authenticate registered users via email and password and maintain authenticated state through a session cookie (JSESSIONID). Sessions expire after 30 minutes by default or after 30 days when the user requests extended persistence. The system shall allow at most five concurrent sessions per user, invalidating the oldest session when this limit is exceeded. Logout shall invalidate the current session immediately.
 
-*FR3 -- Manage Courses and Members.* Instructors shall create and manage courses. Each course has a name and a semester identifier. Instructors shall add and remove course members individually or through a bulk CSV import. Each member holds a role -- either STUDENT or INSTRUCTOR -- within that course. A user may hold different roles in different courses simultaneously: a teaching assistant, for example, may act as an INSTRUCTOR in one course while enrolled as a STUDENT in another. Each role grants a distinct set of permissions and a distinct interface view for that course. The system recalculates a user's global role whenever their course membership changes.
+*FR3 -- Manage Courses and Members.* Instructors shall create and manage courses. Each course has a name and a semester identifier. Instructors shall add course members individually or through a bulk CSV import, and remove members individually. Each member holds a role -- either STUDENT or INSTRUCTOR -- within that course. A user may hold different roles in different courses simultaneously: a teaching assistant, for example, may act as an INSTRUCTOR in one course while enrolled as a STUDENT in another. Each role grants a distinct set of permissions and a distinct interface view for that course. The system recalculates a user's global role when a membership is added or removed; a dedicated recalculate endpoint is available for role updates.
 
-*FR4 -- Manage Assignments and Rubrics.* Instructors shall create assignments within a course. Each assignment configures a submission window, a review window, a required number of reviews per submission, allowed file types, and a maximum file size. Each assignment has exactly one rubric, consisting of one or more scored questions. Each question defines a description and a maximum point value that determines the scoring scale for reviewers.
+*FR4 -- Manage Assignments and Rubrics.* Instructors shall create assignments within a course. Each assignment configures a submission window, a review window, a required number of reviews per submission, and a maximum file size. Each assignment has exactly one rubric, consisting of one or more scored questions. Each question defines a description and a type: either a scored question on a 1-to-10 scale or an open comment question. At least one scored question is required per rubric.
 
 *FR5 -- Submit Work.* Students shall upload a file as their assignment submission within the configured submission window. The system shall reject uploads outside the window with HTTP 403. Students may delete a submission before the deadline, reverting their status to pending and allowing resubmission. The backend stores each uploaded file on disk under a unique name to prevent collisions and directory traversal.
 
 *FR6 -- Allocate Reviews.* After the submission deadline, the system shall assign peer reviewers to submissions. The allocation algorithm distributes review tasks evenly across students: each student receives the same number of submissions to review, and no student reviews their own submission. Allocation is deterministic and can be triggered either manually by an instructor or automatically by the scheduler when the submission deadline passes and no allocation exists yet.
 
-*FR7 -- Conduct Peer Review.* Students shall complete a rubric-based review for each assigned submission. A review consists of a score per rubric question (an integer from 1 to the question's maximum points) and optional text comments. Students may save a review as a draft before final submission. A submitted review cannot be edited.
+*FR7 -- Conduct Peer Review.* Students shall complete a rubric-based review for each assigned submission. A review consists of a response per rubric question: a score on a 1-to-10 scale for scored questions and a text response for open comment questions. Students may save a review as a draft before final submission. A submitted review cannot be edited.
 
 *FR8 -- Grade Submissions by Instructor.* Instructors shall optionally score a submission using the same rubric as peer reviewers. The system stores the instructor score as a percentage, which serves as the reference value for outlier detection during grade calculation.
 
 *FR9 -- Calculate and Release Grades.* The system shall compute a final grade for each submission when the instructor triggers grade release. The calculation applies the following rule: if any peer score deviates by more than 20 percentage points from the instructor score, the instructor score becomes the final grade; otherwise, the final grade is the average of the instructor score and all peer scores. When no instructor score exists, the system averages the peer scores. The instructor shall release the computed grades and the anonymous review feedback to students via a dedicated endpoint.
 
-*FR10 -- Automate Status Transitions.* The system shall run a scheduled task every 60 seconds to enforce deadline-driven state changes. The scheduler transitions submission statuses when the submission deadline passes (`SUBMITTED` to `UNDER_REVIEW`, `PENDING` to `NO_SUBMISSION`) and review statuses when the review deadline passes (`"READY FOR REVIEW"` and `"DRAFT REVIEW"` to `"NO REVIEW SUBMITTED"`). The scheduler also auto-allocates reviews after the submission deadline if no allocation exists.
+*FR10 -- Automate Status Transitions.* The system shall run a scheduled task every 60 seconds to enforce deadline-driven state changes. The scheduler transitions submission statuses when the submission deadline passes (`SUBMITTED` to `UNDER_REVIEW`, `PENDING` to `NO_SUBMISSION`) and review statuses when the review deadline passes (`"READY FOR REVIEW"` and `"DRAFT REVIEW"` to `"NO REVIEW SUBMITTED"`). The scheduler auto-allocates reviews after the submission deadline if no allocation exists.
 
 === Quality Attributes
 
@@ -62,7 +62,7 @@ The following ten requirements define the capabilities the backend must provide.
 
 == System Models
 
-This section presents the use case model that captures the functional scope of the backend from the perspective of its two actors. Further system models — the entity model and the deployment context diagram — are presented in Chapter 5, where they serve as the foundation for the architectural design.
+This section presents the use case model that captures the functional scope of the backend from the perspective of its two actors. Further system models — the entity model and the deployment diagram — are presented in Chapter 5, where they serve as the foundation for the architectural design.
 
 === Use Case Model
 
@@ -73,4 +73,4 @@ This section presents the use case model that captures the functional scope of t
   short-caption: "TUMPeer use case model",
 )
 
-The use case model captures the functional boundary of the TUMPeer backend from the perspective of its two actors. The Student actor covers all actions a course member with the STUDENT role may perform: registering an account, logging in, uploading a submission within the submission window, conducting assigned peer reviews, and viewing received feedback and final grades after release. The Instructor actor covers course and assignment management, rubric configuration, manual review allocation when needed, instructor scoring of submissions, and grade release. Both actors share the authentication use cases (register, login, reset password). The model reflects the role-scoped access control described in the constraints: every use case is accessible only to the actor whose role grants the required permission in the relevant course.
+The use case model captures the functional boundary of the TUMPeer backend from the perspective of its two actors. The Student actor covers all actions a course member with the STUDENT role may perform: registering an account, logging in, uploading a submission within the submission window, conducting assigned peer reviews, and viewing received feedback and final grades after release. The Instructor actor covers course and assignment management, rubric configuration, instructor scoring of submissions, and grade release. The model reflects the role-scoped access control described in the constraints: every use case is accessible only to the actor whose role grants the required permission in the relevant course.

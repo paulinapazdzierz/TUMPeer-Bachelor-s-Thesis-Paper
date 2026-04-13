@@ -12,15 +12,15 @@ Berrezueta-Guzman, Krusche, and Wagner @berrezueta2025coders apply both conditio
 
 == Representational State Transfer
 
-Representational State Transfer (REST) is an architectural style for distributed hypermedia systems defined by Fielding @fielding2000architectural, in which a client communicates with a server through a uniform interface of standard HTTP methods and each request carries all the information needed to process it. TUMPeer exposes a REST API that the React frontend consumes; the stateless request model supports horizontal scaling because no server-side affinity is required for ordinary operations.
+Representational State Transfer (REST) is an architectural style for distributed hypermedia systems defined by Fielding, in which a client communicates with a server through a uniform interface of standard HTTP methods and each request carries all the information needed to process it. TUMPeer exposes a REST API that the React frontend consumes; the stateless request model supports horizontal scaling because no server-side affinity is required for ordinary operations.
 
 == Layered Software Architecture
 
-A layered architecture organises a system into horizontal tiers, each with a single defined responsibility that communicates only with the tier directly below it @bruegge2004object. The pattern enforces separation of concerns, bounds the impact of any change to a single layer, and makes each layer independently testable. How TUMPeer applies this pattern is described in @sec-subsystem-decomposition.
+A layered architecture organises a system into horizontal tiers, each with a single defined responsibility that communicates only with the tier directly below it. The pattern enforces separation of concerns, bounds the impact of any change to a single layer, and makes each layer independently testable. How TUMPeer applies this pattern is described in @sec-subsystem-decomposition.
 
 == Spring Boot and Java Persistence
 
-Spring Boot is an opinionated configuration layer for the Spring Framework that auto-configures components and produces self-contained executable JARs; TUMPeer uses Spring Boot 3 on Java 21. Spring Security manages authentication and authorisation at the HTTP filter level, maintaining session state through an HTTP-only cookie and enforcing per-course role checks at each endpoint. Spring Data JPA, backed by Hibernate, provides a typed repository abstraction that maps Java entity classes to database tables and translates repository method declarations to SQL. Flyway applies versioned SQL migration scripts on startup, guaranteeing that every environment runs against the same schema without manual database administration.
+Spring Boot is an opinionated configuration layer for the Spring Framework that auto-configures components and produces self-contained executable JARs; TUMPeer uses Spring Boot 3 on Java 21. Spring Security manages authentication and authorisation at the HTTP filter level, maintaining session state through an HTTP-only cookie and enforcing per-course role checks at each endpoint. Spring Data JPA, backed by Hibernate, provides a typed repository abstraction that maps Java entity classes to database tables and translates repository method declarations to SQL. Flyway applies versioned SQL migration scripts on startup, ensuring that every environment runs against the same schema without manual database administration.
 
 == PostgreSQL and Relational Data Modeling
 

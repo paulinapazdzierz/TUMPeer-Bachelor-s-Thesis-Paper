@@ -144,7 +144,9 @@
     numbering: "1",
     header: context {
       let headings = query(heading.where(level: 1).before(here()))
-      if headings.len() > 0 {
+      let current_page = here().page()
+      let chapter_starts_here = query(heading.where(level: 1)).any(h => h.location().page() == current_page)
+      if headings.len() > 0 and not chapter_starts_here {
         let h = headings.last()
         let num = counter(heading).at(h.location()).first()
         text(size: 0.85em, fill: luma(80))[
