@@ -1,21 +1,27 @@
-#import "/utils/todo.typ": TODO
-
 = Related Work
-#TODO[
-  Introduce the related work landscape: existing peer review platforms and backend systems for educational assessment. Explain what gap TUMPeer fills. Group the related works by theme.
-]
+
+This chapter surveys platforms and research relevant to TUMPeer, examining tools used for peer review in educational settings, discussing research on automated assessment and fair reviewer allocation, and identifying the specific gap that TUMPeer fills.
 
 == Existing Peer Review Platforms
-#TODO[
-  Describe existing tools used for peer review in educational settings, such as Artemis (TUM), Canvas (Instructure), and OpenReview. For each, describe its peer review capabilities and limitations. Focus on: degree of automation, rubric support, scalability, and fit to TUM's course structure.
-]
 
-== Automated Assessment and Grading Systems
-#TODO[
-  Discuss related work on automated grading and review allocation algorithms. Highlight approaches to fair distribution of review workload, outlier detection in peer scores, and grade calculation from multiple reviewers.
-]
+Two systems — Artemis and Moodle Workshop — are the most relevant comparisons to TUMPeer. Both are used in university settings to support assignment assessment, and both informed design decisions in TUMPeer. The comparison below examines each system along three dimensions: anonymity enforcement, degree of automation, and fit to TUM's institutional context.
+
+*Artemis* is an exercise and assessment management system developed at TUM @krusche2018artemis. It supports programming exercises with automated test-based grading: students push code to a repository, the platform executes a preconfigured test suite, and the result is presented as an immediate score. TUM courses rely on Artemis for programming assignments, and its deep integration with TUM infrastructure makes it the natural starting point for comparison.
+
+Artemis does not implement double-blind peer review — its primary grading mechanism is a test suite, not student evaluators — and it does not include a background scheduler that transitions submission statuses or allocates reviewers at deadlines. TUMPeer targets a different scenario: project-level file submissions where quality cannot be determined by a test suite and where rubric-based human evaluation is the only practical grading mechanism. The two systems are complementary: Artemis handles deterministic, automated grading of programming tasks, and TUMPeer handles peer evaluation of project submissions.
+
+General-purpose learning management systems used by universities commonly include peer assessment modules that support criterion-based rubrics and some form of reviewer allocation. In these systems, anonymity is typically a display-level configuration option rather than an architectural guarantee: the platform hides names in the review interface, but identity separation is not enforced at the API level and depends on correct frontend configuration. Phase transitions between submission and review likewise tend to require explicit instructor intervention rather than happening automatically when a deadline passes. As general-purpose tools, they carry no institution-specific constraints and would require substantial configuration to match the workflow and grading rules of a specific course programme.
+
+== Automated Assessment and Review Allocation
+
+Research on automated and semi-automated peer assessment informs several TUMPeer design decisions.
+
+Kulkarni et al. @kulkarni2013peer study peer and self-assessment across two iterations of a large online course and find that averaging scores across multiple peer reviewers significantly reduces the noise introduced by individual evaluators and improves correlation with instructor grades. Their analysis shows that peer grades converge toward instructor grades as the number of reviewers increases, even without correcting for individual reviewer bias. This finding motivates the TUMPeer requirement that each submission receives a configurable number of peer reviews: a single-reviewer assessment introduces unacceptable variance in the final grade.
+
+Piech et al. @piech2013tuned develop a probabilistic model for inferring true submission quality from peer grades by estimating and correcting for each reviewer's systematic bias and reliability. Their model, applied to data from a Coursera course with over 63,000 peer grades, demonstrates substantial improvement in grade accuracy over a naive average. The outlier detection rule in TUMPeer achieves a similar correction through a transparent, threshold-based mechanism: when any peer score deviates by more than 20 percentage points from the instructor score, the instructor score overrides the peer average. This design is appropriate for a setting where instructor grading of every submission is feasible and where the correction mechanism must be explainable to students without reference to a probabilistic model. Berrezueta-Guzman, Krusche, and Wagner @berrezueta2025coders provide the empirical basis for the specific threshold: their study in a TUM programming course finds that peer evaluations cluster near the instructor score in the majority of cases, while a minority of reviews deviate substantially — consistent with the expectation that a fixed 20 percentage-point boundary can separate reliable evaluations from outliers.
 
 == Research Gap
-#TODO[
-  Clearly state how TUMPeer differs from and extends existing work. Emphasize: TUM-specific course structure, full automation of the review lifecycle (allocation → grading → release), rubric-based scoring with ±20pp outlier detection, and scalability for large courses.
-]
+
+The platforms and studies surveyed above address subsets of the peer review problem in different instructional contexts. None combines the following capabilities in a single system: registration restricted to a university-specific email domain, automatic load-balanced reviewer allocation that guarantees an equal number of review tasks per student, multi-criteria rubric scoring as the sole quantitative evaluation mechanism, a background scheduler that transitions submission and review statuses at deadlines without instructor intervention, an outlier detection rule that substitutes the instructor score when peer evaluations deviate substantially, mutual double-blind anonymity enforced at the API response level throughout the entire workflow, and anonymised per-criterion score statistics released to both instructors and students after grade publication.
+
+TUMPeer addresses this gap by implementing the complete peer review lifecycle — from TUM-restricted registration through rubric configuration, file submission, automatic allocation, review collection, outlier-corrected grade computation, and result release — within a single backend system designed specifically for the constraints and workflow of TUM courses. The combination of Artemis for automated programming exercise grading and TUMPeer for rubric-based project peer review gives TUM courses a complete automated assessment pipeline that covers both deterministic and human-evaluated assignment types.

@@ -2,7 +2,7 @@
 #let titleEnglish = "Scalable, Rubric-Driven Assessment Services for Student Submissions"
 #let titleGerman = "Skalierbare, rubrikengesteuerte Bewertungsdienste für studentische Einreichungen"
 #let degree = "Bachelor"
-#let program = "Information Systems"
+#let program = "Information Engineering"
 #let examiner = "Prof. Dr. Stefan Wagner"
 #let supervisors = ("Dr. Santiago Berrezueta",)
 #let author = "Paulina Paździerz"

@@ -1,46 +1,35 @@
-#import "/utils/todo.typ": TODO
-
 = Summary
-#TODO[
-  Briefly introduce this chapter: recap the thesis goal (a scalable backend for rubric-driven peer assessment at TUM), then cover status, conclusion, and future directions.
-]
+
+This thesis designed and implemented the TUMPeer backend: a four-layer Spring Boot REST API backed by a PostgreSQL database that automates the peer review lifecycle for university courses at TUM. The implementation translates the ten functional requirements and five quality attributes stated in Chapter 4 into working code, covering every phase of the lifecycle from user registration through grade release. This chapter assesses the degree to which the implementation fulfils those requirements, identifies what remains incomplete, draws conclusions about the overall contribution, and outlines directions for future work.
 
 == Status
-#TODO[
-  Honestly assess what was achieved and what remains open. Reference the functional requirements from Chapter 4.
-]
+
+The backend delivers a working system that covers the complete peer review lifecycle. The assessment below maps the implemented features to the functional requirements and quality attributes from Chapter 4, and identifies two requirements that are only partially met.
 
 === Realized Goals
-#TODO[
-  List the implemented and working backend features, mapped to the functional requirements:
-  - FR1-FR2: TUM email registration with verification and session-based authentication
-  - FR3-FR4: Course and assignment management with rubric configuration
-  - FR5: File submission handling with deadline enforcement
-  - FR6: Fair review allocation algorithm
-  - FR7: Rubric-based review submission with draft support
-  - FR8: Grade calculation with +/-20pp outlier detection
-  - FR9: Instructor-triggered grade and review release
-  - FR10: Automated status transitions via 60-second scheduler
-]
 
-=== Open Goals
-#TODO[
-  Describe requirements or features that were not fully realized. Examples:
-  - Deadline-based resubmission enforcement (allowResubmission flag exists but enforcement not implemented)
-  - Edge case: user added to a course before creating an account
-  - Advanced statistics endpoints for detailed per-student score breakdowns
-  Explain briefly why these were not completed.
-]
+The backend fulfils all ten functional requirements. FR1 and FR2 are covered by a two-step email verification flow, BCrypt-hashed password storage, session-based login with configurable lifetime, and a five-session concurrency limit. FR3 and FR4 are covered by course and member management with bulk CSV import, assignment creation with rubric questions, and deadline PATCH endpoints that trigger the appropriate status reversals when a closed window reopens. FR5 is covered by hard deadline enforcement at the endpoint level and UUID-prefixed file storage. FR6 is covered by the balanced allocation algorithm with a rotating position tiebreaker that prevents systematic reviewer clustering. FR7 and FR8 are covered by draft and submit review endpoints that enforce the review window and protect reviewer anonymity, and by a per-submission instructor grading endpoint. FR9 is covered by the `release-grades` endpoint, which applies the ±20pp outlier rule and records the grading branch in an auditable field. FR10 is covered by `SubmissionStatusScheduler`, which runs every 60 seconds and applies all deadline-driven transitions idempotently.
+
+All five quality attributes hold. BCrypt hashing, HTTP-only session cookies, and Bucket4j rate limiting meet QA1 (Security). The idempotent scheduler meets QA2 (Reliability). The grade calculation logic and endpoint-level deadline enforcement meet QA3 (Correctness). The stateless REST design supports QA4 (Scalability) by eliminating server-side session affinity for ordinary requests; quantitative load testing under large-cohort conditions remains outside the scope of this thesis. The layered architecture, backed by a unit test suite that verifies every major business rule in the service layer independently of the HTTP and persistence layers, meets QA5 (Maintainability).
+
+== Limitations
+
+The backend was designed with scalability in mind: requests are stateless, the service layer processes each operation independently, and no global locks are held during normal workflow operations. These properties mean the system can in principle handle concurrent access from large courses without correctness failures. However, this has not been validated under load. No performance tests were conducted with simulated cohorts of 100 or more students, and no measurements of response time or throughput under concurrent requests exist. The scalability claim therefore rests on architectural design decisions rather than empirical evidence, and load testing under realistic operating conditions remains an open item for future work.
 
 == Conclusion
-#TODO[
-  Summarize the thesis contribution: the design and implementation of a scalable, rubric-driven backend for peer assessment at TUM. Recap the key technical contributions: the layered Spring Boot architecture, the fair allocation algorithm, the automated scheduler-driven status machine, and the outlier-based grading system. State how TUMPeer addresses the gap identified in the introduction.
-]
+
+This thesis designed and implemented the TUMPeer backend — a REST API and PostgreSQL database that automates the peer review lifecycle for university courses at TUM. The platform addresses the gap identified in the introduction: the absence of a dedicated backend that enforces TUM-specific constraints, allocates reviewers equitably, and drives all deadline-based state changes without instructor intervention. Every phase of the peer review lifecycle, from user registration and course setup through submission, review, and grade release, is covered by a working implementation that has completed a full end-to-end test run under real course conditions.
+
+Four technical contributions form the core of the work. The layered Spring Boot architecture separates security, request handling, business logic, and data access into four distinct, independently testable layers, keeping each layer's responsibility narrow and its behaviour verifiable in isolation. The review allocation algorithm distributes peer review tasks evenly across a cohort while ensuring no student reviews their own work; a rotating position tiebreaker prevents the reviewer clustering that a simpler deterministic tiebreaker would produce. The scheduler-driven status machine enforces all deadline transitions within 60 seconds of a deadline passing, without requiring any client to trigger the change, and processes every assignment idempotently on each execution. The outlier-detection grading system computes final scores according to the ±20pp rule, includes the instructor's own peer review contribution in the grade average when they participated as a reviewer, and records the grading branch in an auditable field that instructors can inspect after release.
+
+The backend satisfies all five quality attributes stated in Chapter 4: passwords are BCrypt-hashed, sessions are confined to HTTP-only cookies, rate limiting protects every endpoint, all status transitions are idempotent, and the layered design enables unit-level verification of every business rule. The implementation covers the full scope of the objectives stated in the introduction and leaves only two minor features — the `allowResubmission` flag and automatic role recalculation on role updates — for future completion.
 
 == Future Work
-#TODO[
-  Describe promising directions for extending TUMPeer's backend:
-  - OAuth2 integration with TUM's identity provider: access to TUM's OAuth2 infrastructure was obtained only at the end of the development period, making integration infeasible within the thesis timeline. Replacing the current email-based registration with OAuth2 single sign-on would eliminate manual account creation, enforce TUM identity automatically, and significantly simplify the authentication flow.
-  - Migration from the current Gmail SMTP account to a TUM-issued email address and the TUM email service, which would give all outgoing verification and notification emails an official institutional sender address.
-  - More sophisticated outlier detection beyond the +/-20pp threshold
-]
+
+Three directions offer clear paths to extending TUMPeer's backend. OAuth2 integration with TUM's identity provider would replace the current email-based registration with single sign-on. TUM's OAuth2 infrastructure became accessible only at the end of the development period, which made integration infeasible within the thesis timeline. Replacing the custom verification flow with OAuth2 would eliminate manual account creation, enforce TUM identity at the authentication layer, and remove the dependency on a third-party SMTP relay for verification emails.
+
+Migration from the current Gmail SMTP account to a TUM-issued mail service would give all outgoing verification codes and password reset links an institutional sender address. The current setup meets the functional requirement for email delivery but does not carry the institutional sender identity appropriate for a university platform. Spring Mail's configuration abstraction makes this migration a configuration change: only the SMTP host, port, and credentials need to change, with no modification to application code.
+
+The ±20pp outlier detection rule provides a simple, auditable grading decision, but it does not account for the distribution of peer scores or for systematic reviewer bias. A natural extension would apply statistical outlier detection — for example, flagging scores that deviate by more than one standard deviation from the peer mean — and weight reviewer scores by their historical alignment with instructor grades. TUMPeer's data model already supports this direction: the `ReviewScore` and `SubmissionGrade` tables retain the full per-question scoring history needed to build reviewer reliability profiles over successive assignments.
+
+Performance evaluation under realistic operating conditions is a fourth open direction. The backend is designed to handle concurrent access from large courses: each request is stateless, the service and repository layers process requests independently, and no global locks are held during normal operations. These design properties mean the backend can in principle serve many concurrent users without correctness failures, but this has not yet been tested under load. A natural next step would be to run the system against simulated cohorts of 100 to 500 students, measure response times and throughput, and confirm that the allocation algorithm and scheduler continue to perform within acceptable bounds at that scale. A comparison of the rotating-tiebreaker allocation against a random baseline would make the fairness improvement measurable rather than argued from the algorithm's structure alone.

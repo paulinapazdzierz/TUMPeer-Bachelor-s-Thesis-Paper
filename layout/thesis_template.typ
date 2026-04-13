@@ -83,6 +83,12 @@
   show heading: set block(below: 0.85em, above: 1.75em)
   show heading: set text(font: fonts.body)
   set heading(numbering: "1.1")
+  show heading.where(level: 1): it => {
+    it
+    v(-0.4em)
+    line(length: 100%, stroke: 0.5pt)
+    v(0.3em)
+  }
   // Reference first-level headings as "chapters"
   show ref: it => {
     let el = it.element
@@ -106,7 +112,14 @@
   set cite(style: "alphanumeric")
 
   // --- Figures ---
+  show figure: it => {
+    it
+    v(1.2em)
+  }
   show figure: set text(size: 0.85em)
+  show figure.caption: it => [
+    #strong[#it.supplement #context it.counter.display()#it.separator]#it.body
+  ]
   
   // --- Table of Contents ---
   show outline.entry.where(level: 1): it => {
@@ -127,7 +140,21 @@
 
 
     // Main body. Reset page numbering.
-  set page(numbering: "1")
+  set page(
+    numbering: "1",
+    header: context {
+      let headings = query(heading.where(level: 1).before(here()))
+      if headings.len() > 0 {
+        let h = headings.last()
+        let num = counter(heading).at(h.location()).first()
+        text(size: 0.85em, fill: luma(80))[
+          #num #h.body
+        ]
+        v(-0.6em)
+        line(length: 100%, stroke: 0.4pt + luma(150))
+      }
+    }
+  )
   counter(page).update(1)
   set par(justify: true, first-line-indent: 2em)
 
@@ -142,7 +169,7 @@
     in-outline.update(false)
   }
   outline(
-    title:"",
+    title: none,
     target: figure.where(kind: image),
   )
 
@@ -152,16 +179,11 @@
       pagebreak()
       heading(numbering: none)[List of Tables]
       outline(
-        title: "",
+        title: none,
         target: figure.where(kind: table)
       )
     }
   ]
-
-  // Appendix.
-  pagebreak()
-  heading(numbering: none)[Appendix A: Supplementary Material]
-  include("/layout/appendix.typ")
 
   pagebreak()
   bibliography("/thesis.yml")

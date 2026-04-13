@@ -15,7 +15,7 @@
 
 This chapter describes the implementation of the TUMPeer backend, which constitutes the main contribution of this thesis. Each section covers one feature area: the design decisions made, the non-trivial logic implemented, and how the code maps to the requirements and architecture described in the preceding chapters. Code snippets appear where the logic is not self-evident from prose.
 
-The backend organises functionality around the peer review lifecycle. An instructor registers, creates a course with an assignment and a rubric, and enrolls students. Once the submission window opens, students upload their work; once the submission deadline passes, the scheduler transitions submitted work to the review phase and allocates peer reviewers automatically. During the review period, each assigned reviewer evaluates the submission using the rubric. After the review deadline, the scheduler marks incomplete reviews as overdue. The instructor optionally provides a direct grade per submission, then triggers grade release, which applies the outlier-detection rule, computes the final score for every submission, and makes results visible. The following sections describe each component of this lifecycle in the order it executes.
+The following sections describe each component of the peer review lifecycle in the order it executes, from authentication through grade release.
 
 == Authentication and Email Verification
 
@@ -31,10 +31,11 @@ In the second step, the client submits the code via `POST /api/auth/verify-code`
 
 The registration flow also handles users whom an instructor adds to a course before those users have registered. In this case, a partial `AppUser` record with no password hash already exists; `verifyCodeAndCreateAccount` detects it and completes the account in place rather than creating a duplicate. The mechanism is described in full in @sec-course-member-management.
 
-#placeholder(
-  "Activity diagram of the TUMPeer registration flow. The diagram shows three swimlanes: User, Backend, and Gmail SMTP. It covers the two-step process from form submission through verification code dispatch to account creation and session establishment.",
-  short: "Registration activity diagram",
-)
+#diagram(
+  image("/figures/activity_diagram_paperr.drawio.png", width: 100%),
+  caption: "Activity diagram of the TUMPeer registration flow. The diagram shows three swimlanes: User, Backend, and Gmail SMTP. It covers the two-step process from form submission through verification code dispatch to account creation and session establishment.",
+  short-caption: "TUMPeer registration flow activity diagram",
+) <fig-registration-flow>
 
 === Login and Session Management
 
@@ -63,16 +64,32 @@ In both cases the endpoint checks whether a `CourseMember` record already exists
 
 For bulk enrolment, `POST /api/courses/{courseId}/members/import` accepts a CSV file with columns `first_name`, `last_name`, `tum_id`, and `tum_email`. The backend detects the delimiter (comma or semicolon), applies the same two-case logic to each row, and returns a per-row success and error report. @fig-csv-format illustrates the accepted file formats.
 
-#placeholder(
-  [Accepted CSV formats for bulk member import. The file must contain the columns `first_name`, `last_name`, `tum_id`, and `tum_email`. Both comma-separated and semicolon-separated variants are supported; the backend detects the delimiter automatically.],
-  short: "Accepted CSV formats for bulk member import",
+Each row undergoes server-side validation against several constraints: required fields (first name, last name, email) must not be empty; the email must match a TUM domain (`@tum.de` or `@mytum.de`); the TUM ID, if provided, must follow the expected format (consonant-vowel-2digits-consonant-vowel-consonant, e.g., `ge57yef`); and within the same import, email addresses and TUM IDs must not be duplicated. Rows that pass all validations are imported; rows that fail include a specific error reason in the report.
+
+
+#diagram(
+  image("/figures/Screenshot 2026-04-12 171315.png", width: 100%),
+  caption: "CSV import validation. The backend accepts both comma-separated and semicolon-separated formats and validates each row. Valid rows receive a green checkmark; invalid rows display a red mark with the specific error reason (invalid TUM ID format, invalid email format, etc.). The endpoint returns a per-row success and error report.",
+  short-caption: "CSV import validation results",
 ) <fig-csv-format>
+
+#diagram(
+  image("/figures/csv import.png", width: 100%),
+  caption: "Bulk member import interface displaying validation results. The backend returns per-row success and error information which the interface presents clearly to the instructor: a summary line showing the number of successful imports and errors, followed by a detailed list of validation errors with line numbers and specific reasons, and a table of successfully imported participants with their assigned roles.",
+  short-caption: "Bulk member import interface with validation results",
+) <fig-csv-import-ui>
 
 Beyond adding members, the backend exposes endpoints for updating and removing memberships. `PUT /api/courses/{courseId}/members/{userId}` and `PATCH /api/courses/{courseId}/members/{userId}` both update the role a user holds in a course; neither triggers an automatic recalculation of the user's `globalRole`. `DELETE /api/courses/{courseId}/members/{userId}` removes the membership record and immediately recalculates the user's `globalRole`. How `globalRole` is derived from per-course memberships and why this matters for user permissions is explained in the Role Management section below.
 
 === Role Management
 
-As described in the Architecture chapter, TUMPeer derives each user's effective interface from the roles they hold across all their course memberships. Three cases arise: STUDENT memberships only yields the student view; INSTRUCTOR memberships only yields the instructor view; holding both yields a toggle between the two views.
+As described in the Architecture chapter, TUMPeer derives each user's effective interface from the roles they hold across all their course memberships. Three cases arise: STUDENT memberships only yields the student view; INSTRUCTOR memberships only yields the instructor view; holding both yields a toggle between the two views. Figure~@fig-switch-button shows the toggle as it appears in the student dashboard for a user who also holds an instructor role.
+
+#diagram(
+  image("/figures/switch_button_updated.png", width: 100%),
+  caption: "Student dashboard for a user who also holds an instructor role in another course. The \"Switch to Instructor\" button in the navigation bar lets the user toggle to the instructor view; the backend determines which button to expose based on the roles returned by GET /api/auth/me.",
+  short-caption: "Role toggle button in the student dashboard",
+) <fig-switch-button>
 
 The backend implements this through two fields returned by `GET /api/auth/me`. The first is `globalRole` on `AppUser`, a single enum value (`STUDENT` or `INSTRUCTOR`) that records the highest role the user holds across all course memberships. `UserService.recalculateGlobalRole()` keeps this field in sync: it queries all `CourseMember` records for the user, sets `globalRole` to INSTRUCTOR if any membership carries that role, and sets it to STUDENT otherwise. Storing `globalRole` as a denormalised column avoids recomputing it from course memberships on every request; the trade-off is that it must be explicitly recalculated whenever course memberships change. The second field is `courseRoles`, a deduplicated list of all distinct role values the user holds across their course memberships. The endpoint collects every `CourseMember` record for the user, extracts the role from each, removes duplicates, and returns the result (for example, `["STUDENT", "INSTRUCTOR"]` for a user who holds both roles). The frontend reads `courseRoles` to decide which views to render: a list containing only `"STUDENT"` shows the student view; only `"INSTRUCTOR"` shows the instructor view; both values enable a toggle between the two views. Role update operations via `PUT` and `PATCH` do not trigger recalculation automatically; an instructor who promotes or demotes a member must call `POST /api/users/{userId}/recalculate-role` explicitly to synchronise the `globalRole` field.
 
@@ -92,28 +109,39 @@ When all checks pass, the backend generates a UUID, prefixes it to the original 
 
 == Review Allocation Algorithm
 
-After the submission deadline passes, the backend must assign peer reviewers to submissions. Each student who submitted work becomes both a candidate reviewer and the owner of a submission that needs reviewers. The allocation must satisfy two constraints: no student may review their own submission, and the review workload must distribute as evenly as possible across all eligible reviewers.
+The allocation requirements — no self-review, equal workload distribution, deterministic results — are specified in FR6. The algorithm that satisfies them runs in `ReviewService.allocateReviewsForAssignment()`. It takes the list of submissions -- and therefore the list of reviewer candidates, one per submission -- and that configured number of reviews per submission.
 
-The algorithm runs in `ReviewService.allocateReviewsForAssignment()`. It takes the list of submissions -- and therefore the list of reviewer candidates, one per submission -- and the configured number of reviews per submission (`requiredNumberOfReviewsForSubmission`). For each submission, the algorithm selects reviewers from the pool of all other students by sorting candidates first by their current review count (ascending) and then by user identifier as a stable tie-breaker. It assigns the first N candidates from the sorted list as reviewers for the current submission and increments their review counts before moving to the next submission.
+The algorithm first sorts submissions by their database identifier to establish a deterministic, stable processing order. It records the position of each reviewer in this sorted list as their base position (0-indexed). For each submission, the algorithm selects all N reviewers before updating any review counts. This means that when k reviewers must be chosen simultaneously and several candidates are tied on load count, the tie-breaker determines all k picks at once. Without a careful tie-breaker, students with a low identifier would win every tie in every round, ending up assigned more reviews than others purely due to their identifier. The rotating position tie-breaker fixes this by shifting the starting point of the candidate order by one slot for each successive submission, so the student who wins a tie rotates around the cohort rather than always being the same person. The rotating position is computed as `(basePosition[c] − subIdx mod n + n) mod n`, where `n` is the total number of reviewers and `subIdx` is the index of the current submission.
 
-```
-for each submission S in submissions:
-    candidates = all reviewers except S.studentId
-    sort candidates by (reviewCount[c] ASC, c.userId ASC)
-    assign candidates[0..N-1] as reviewers for S
-    increment reviewCount for each assigned reviewer
-```
+The following pseudocode summarises the core loop:
 
-Sorting by user identifier as a tie-breaker ensures the algorithm produces identical results for identical inputs, making re-allocation predictable. Each `ReviewAssignment` record receives status `"READY FOR REVIEW"` and a `reviewerLabel` integer (1, 2, 3, ...) that the frontend displays to the submission author in place of the actual reviewer name, preserving reviewer anonymity. When the number of available reviewers falls below the required reviews per submission, the method throws an `IllegalArgumentException` and creates no assignments. Allocation runs either manually via `POST /api/assignments/{assignmentId}/review-assignments` or automatically by the scheduler after the submission deadline, provided no review assignments exist yet for the assignment.
+#block(fill: luma(240), inset: (x: 1em, y: 0.8em), radius: 3pt, width: 100%)[
+  #raw(block: true,
+"sort submissions by submissionId
+basePosition[reviewer_i] ← i   for each reviewer in sorted order
+n ← number of reviewers
+k ← required reviews per submission
+for each submission S at index subIdx:
+    candidates  ←  all reviewers where reviewer ≠ S.student
+    sort candidates by (reviewCount[c] ASC,
+                        (basePosition[c] − subIdx mod n + n) mod n ASC)
+    assign candidates[0 .. k-1] as reviewers for S
+    increment reviewCount for each assigned reviewer")
+]
+
+Sorting by rotating position as a tie-breaker preserves load-balance as the primary criterion while distributing reviewer pairings more evenly, making re-allocation produce identical results for identical inputs. Each `ReviewAssignment` record receives status `"READY FOR REVIEW"` and a `reviewerLabel` integer (1, 2, 3, ...) that all student-facing endpoints expose in place of the actual reviewer identity, enforcing the double-blind anonymity constraint described in @sec-access-control. When the number of available reviewers falls below the required reviews per submission, the method throws an `IllegalArgumentException` and creates no assignments. Allocation runs either manually via `POST /api/assignments/{assignmentId}/review-assignments` or automatically by the scheduler after the submission deadline, provided no review assignments exist yet for the assignment.
+
+The algorithm runs in $O(n^2 log n)$ time, where $n$ is the number of submitting students. The dominant cost is the candidate sort executed once per submission: sorting $n - 1$ candidates takes $O(n log n)$, repeated $n$ times yields $O(n^2 log n)$ overall. At typical course enrolment of 20 to 300 students, allocation completes in single-digit milliseconds and executes exactly once per assignment, so the quadratic factor carries no practical cost. A priority-queue-based variant could reduce the overall complexity to $O(n log n)$ by maintaining a sorted structure of reviewer loads across iterations, but at substantially higher implementation complexity for negligible benefit at this scale. Random allocation was rejected because it is non-deterministic and cannot guarantee equal load distribution; bipartite matching would guarantee an optimal assignment but imposes unnecessary complexity given that the equal-load constraint is already met by the greedy load-sort approach.
 
 == Status Management
 
 The peer review lifecycle is divided into five phases, each bounded by one of the assignment's four timestamps: submission start, submission end, review start, and review end. Each phase defines which actions the instructor and students may perform, which status values are active, and what transitions occur at the phase boundary. The diagram below shows all phases on a shared timeline, together with the submission statuses visible to students, the review statuses visible to reviewers, and the assignment period visible to the instructor.
 
-#placeholder(
-  "Status implementation diagram for TUMPeer. A shared horizontal timeline is divided into five phases by four milestones: Submission Start Date, Submission End Date, Review Start Date, and Review End Date. The top track shows student submission statuses and their transitions. The middle track shows student review statuses and their transitions. The bottom track shows the instructor assignment period label at each phase. Arrows indicate whether a transition is triggered by a student action, an instructor action, or the background scheduler.",
-  short: "TUMPeer status implementation diagram",
-)
+#diagram(
+  image("/figures/assignment_status_table_tum 2 (1).png", width: 100%),
+  caption: "Status implementation diagram for TUMPeer. A timeline shows five phases divided by four assignment milestones: Assignment Created, Submission Start Date, Submission End Date, Review Start Date, and Review End Date. The top track displays student submission statuses (not visible, PENDING, SUBMITTED, NO_SUBMISSION, UNDER_REVIEW, GRADED) and their transitions. The middle track shows review statuses (READY FOR REVIEW, DRAFT REVIEW, REVIEW SUBMITTED, NO REVIEW SUBMITTED). The bottom track displays the instructor's assignment period label for each phase (Scheduled, Submission period, Review period, Grades Released). Annotations indicate when the scheduler runs to change statuses.",
+  short-caption: "TUMPeer status implementation diagram",
+) <fig-status-diagram>
 
 === Phase 1: Assignment Created to Submission Start
 
@@ -131,12 +159,7 @@ At the `submissionEnd` boundary, the scheduler transitions every `SUBMITTED` sub
 
 During Phase 3, the instructor sees the assignment period as `"Review Period"`. The instructor may view which students submitted and which did not, may enter instructor grades per submission, and may still adjust the number of reviewers per submission and re-trigger the allocation algorithm. Adjusting reviewer count and re-running allocation remains possible until `reviewStart`, because that is the point at which the review form becomes accessible to students. Students see their submission status as `UNDER_REVIEW` and see their assigned review tasks with status `"READY FOR REVIEW"`, but the review form is not yet accessible.
 
-Phase 3 ends when `reviewStart` passes. The diagram below summarises all submission status transitions across Phases 2 and 3, showing which trigger — student action or scheduler — drives each transition.
-
-#placeholder(
-  "Submission status state diagram. Shows all possible submission statuses (PENDING, SUBMITTED, UNDER_REVIEW, NO_SUBMISSION) and the transitions between them. PENDING transitions to SUBMITTED on student file upload and back to PENDING on student deletion. At the submission deadline, the scheduler transitions SUBMITTED to UNDER_REVIEW and PENDING to NO_SUBMISSION.",
-  short: "Submission status state diagram",
-)
+Phase 3 ends when `reviewStart` passes.
 
 === Phase 4: Review Start to Review End
 
@@ -148,29 +171,41 @@ Phase 4 ends when `reviewEnd` passes. The scheduler detects this on its next 60-
 
 Phase 5 formally begins when `reviewEnd` passes, but no change is immediately visible to students at that moment. The scheduler transitions every `ReviewAssignment` with status `"READY FOR REVIEW"` to `"NO REVIEW SUBMITTED"`. For assignments with status `"DRAFT REVIEW"`, it calls `clearDraftReviewAnswers()`, which clears the saved scores and comment text and also sets the status to `"NO REVIEW SUBMITTED"`. Only reviews with status `"REVIEW SUBMITTED"` contribute to grade calculation; incomplete and overdue reviews are excluded. The assignment period remains `"Review Period"` on the instructor dashboard.
 
-The first change visible to students occurs only when the instructor explicitly triggers grade release via `POST /api/assignments/{assignmentId}/release-grades`. The endpoint computes the final score for every submission using the peer review scores and the instructor score, applies the ±20pp outlier detection rule described in the following section, transitions every `UNDER_REVIEW` submission to `GRADED`, and sets `assignment.resultsReleaseAt` to the current time. The assignment period advances to `"Grades Released"`. Students with status `GRADED` can now view their final score and the reviews they received. `NO_SUBMISSION` records are not advanced and remain excluded from the visible results. The diagram below summarises all review status transitions across Phases 4 and 5.
-
-#placeholder(
-  "Review status state diagram. Shows all possible review statuses (READY FOR REVIEW, DRAFT REVIEW, REVIEW SUBMITTED, NO REVIEW SUBMITTED) and the transitions between them. READY FOR REVIEW transitions to DRAFT REVIEW when the reviewer saves a draft, and from DRAFT REVIEW the reviewer may save further drafts or submit, transitioning to REVIEW SUBMITTED. REVIEW SUBMITTED is a terminal state. At the review deadline, the scheduler transitions both READY FOR REVIEW and DRAFT REVIEW to NO REVIEW SUBMITTED.",
-  short: "Review status state diagram",
-)
-
+The first change visible to students occurs only when the instructor explicitly triggers grade release via `POST /api/assignments/{assignmentId}/release-grades`. The endpoint computes the final score for every submission using the peer review scores and the instructor score, applies the ±20pp outlier detection rule described in the following section, transitions every `UNDER_REVIEW` submission to `GRADED`, and sets `assignment.resultsReleaseAt` to the current time. The assignment period advances to `"Grades Released"`. Students with status `GRADED` can now view their final score and the reviews they received. `NO_SUBMISSION` records are not advanced and remain excluded from the visible results. 
 === Scheduler
 
-All time-based transitions are driven by `SubmissionStatusScheduler`, annotated with `@Scheduled(fixedRate = 60000)`, which Spring executes every 60 seconds independently of any client activity. On each execution the scheduler loads all assignments, reads the current time in the Europe/Berlin timezone, and evaluates the deadline conditions for each assignment. All transitions are idempotent: records already in the target status are skipped, so repeated executions produce no side effects.
-
-The design uses a polling scheduler rather than an event-driven approach because it requires no message broker, tolerates application restarts without losing pending transitions, and keeps all time-based logic in a single auditable component. The 60-second interval means a status transition completes within at most one minute of a deadline passing, which is an acceptable latency for an academic workflow.
+The design rationale for the polling scheduler — why it was chosen over an event-driven approach and what the 60-second interval implies — is covered in @sec-control-flow. The implementation detail worth noting here is that all transitions are idempotent: the scheduler checks each assignment's current status before acting, so records already in the target status are silently skipped. Repeated executions therefore produce no side effects. The scheduler reads the current time in the Europe/Berlin timezone on every execution to ensure consistent behaviour across daylight saving time transitions.
 
 == Grading System
 
-The grading system offers two independently invocable operations: per-submission peer grade calculation and bulk grade release with outlier detection.
+Every submission is evaluated using the same rubric by the assigned peer reviewers and, optionally, by the instructor. Each evaluation produces a percentage score computed as `(totalPointsAwarded / totalPointsMax) × 100`. The backend tracks which `ReviewAssignment` records belong to the instructor by checking course membership, and keeps the two sets of scores separate for outlier detection. The instructor may submit their rubric evaluation at any point after the review period starts; peer reviewers work within the review window as described in the previous section.
 
-=== Peer Grade Calculation
+=== Peer Grade Preview
 
-The endpoint `POST /api/submissions/{submissionId}/calculate-grade` computes the final score for a single submission from its completed peer reviews. For each `ReviewAssignment` linked to the submission, the service retrieves the associated `Review` record. Only reviews with status `"REVIEW SUBMITTED"` and non-null point totals contribute to the calculation. Each qualifying review yields a percentage score: `(totalPointsAwarded / totalPointsMax) × 100`. The final score is the arithmetic mean of all contributing percentages, rounded to two decimal places. When no completed reviews exist, the final score is zero. The service stores the result in the `SubmissionGrade` record and sets `assignment.resultsReleaseAt` to the current time, making the grade visible in the statistics endpoints.
+Before triggering bulk grade release, the instructor can call `POST /api/submissions/{submissionId}/calculate-grade` to view an intermediate peer-only score for a single submission. This endpoint considers only completed peer reviews and does not incorporate the instructor score or apply the outlier detection rule. It serves purely as an inspection tool; the definitive final grade is determined only when the instructor triggers bulk grade release.
 
 === Bulk Grade Release with Outlier Detection
 
-The endpoint `POST /api/assignments/{assignmentId}/release-grades` processes all submissions in an assignment within a single transactional operation. For each submission, the service collects peer review percentages -- excluding any review the instructor submitted -- and the instructor score from `submission_grade.instructor_score` if one exists. Four branches determine the final score. When neither score type is available, the final score is zero. When only peer scores exist, the final score is the peer average. When only the instructor score exists, it becomes the final score directly. When both are present, the service checks whether any peer score deviates by more than 20 percentage points from the instructor score; if so, the instructor score overrides the peer average entirely; otherwise the final score is the average of the instructor score and all peer scores.
+The endpoint `POST /api/assignments/{assignmentId}/release-grades` processes all submissions in a single transactional operation and computes the definitive final grade for each. For each submission, the service collects all submitted peer reviews into two sets. `allPeerScores` contains the percentage score from every `ReviewAssignment` with status `REVIEW SUBMITTED`, including the instructor's when they graded. `studentPeerScores` is the subset restricted to non-instructor reviewers and is used exclusively for the outlier check. The instructor grades a submission through the same rubric form as student reviewers; this single action creates a `ReviewAssignment` for the instructor and simultaneously stores the computed percentage to `SubmissionGrade.instructorScore`, which the outlier check uses as its reference value. Four cases determine the final score.
 
-The `calculation` field in `SubmissionGrade` records which branch applied (`"no_scores"`, `"peer_average"`, `"instructor_only"`, `"instructor_score_outlier"`, or `"average_all"`), making the grading decision auditable after the fact. After computing final scores, the endpoint marks every non-`NO_SUBMISSION` submission as `GRADED` and sets `assignment.resultsReleaseAt` to the current time. The ±20pp threshold uses a strict inequality: the absolute difference must exceed 20 percentage points for the outlier rule to activate. The threshold captures meaningful disagreement between a peer and the instructor while tolerating the normal variation inherent in subjective rubric-based assessment. When the outlier rule applies, the instructor score serves as the authoritative final grade, reflecting the assumption that significant peer-instructor discrepancy signals an unreliable peer evaluation.
+- *No peer reviews and no instructor score:* the final score is zero (`"no_scores"`).
+- *No instructor score:* the final score is the arithmetic mean of all submitted peer review scores in `allPeerScores` (`"peer_average"`).
+- *No peer reviews submitted:* the instructor score becomes the final score directly (`"instructor_only"`).
+- *Both peer reviews and instructor score present:* the service checks whether any score in `studentPeerScores` deviates from the instructor score by more than 20 percentage points. If an outlier is found, the instructor score overrides the peer scores entirely (`"instructor_score_outlier"`), on the assumption that a large peer-instructor discrepancy signals an unreliable peer evaluation. Otherwise, the final score is the arithmetic mean of all scores in `allPeerScores`, which includes the instructor's score (`"average_all"`).
+
+The ±20pp threshold uses a strict inequality, is checked per individual score, and applies only to student reviewers, so an instructor's own peer review submission does not trigger the outlier rule against their own direct grade. The threshold was set as a project requirement by the supervising instructor. It was chosen to be slightly more lenient than the typical peer-instructor deviation observed in a prior rubric-based peer review study at TUM, which reported a root mean square error of 14.87 percentage points @berrezueta2025coders; a 20pp boundary therefore tolerates borderline disagreements during the initial deployment of the platform while still catching clear outliers. The threshold is a configurable starting point — a statistical replacement such as a z-score or interquartile-range-based rule is identified as future work.
+
+#figure(
+  image("/figures/Screenshot 2026-04-10 224552.png", width: 100%),
+  caption: "Submission Reviews table in the instructor view, showing the final score, peer average, instructor score, and grading calculation per student.",
+) <fig-submission-reviews>
+
+The `calculation` field in `SubmissionGrade` records which case applied, making the grading decision auditable after the fact. After computing all final scores, the endpoint transitions every non-`NO_SUBMISSION` submission to `GRADED` and sets `assignment.resultsReleaseAt` to the current time, advancing the assignment period to `"Grades Released"` and making results visible to students.
+
+== Score Statistics
+
+Once the instructor triggers grade release, the score statistics dashboard becomes available immediately to both instructors and students. The `StatisticsService` exposes four endpoints under `/api/statistics/` and applies a single visibility condition to all of them: an assignment's results are included only when `resultsReleaseAt` is set and its value is in the past. Since `release-grades` sets this field, no additional instructor action is required to unlock the statistics.
+
+The instructor statistics view provides two levels of aggregation. The course-level endpoint (`GET /api/statistics/courses/{courseId}/achievement`) computes the overall achievement percentage across all `GRADED` submissions in all released assignments in the course. The per-assignment endpoint (`GET /api/statistics/courses/{courseId}/assignments`) breaks this down further, returning the average final score percentage across all students for each released assignment individually.
+
+The student statistics view mirrors this structure but scopes the data to the individual student. The course-level endpoint (`GET /api/statistics/students/{studentId}/courses/{courseId}/achievement`) computes the student's own overall achievement: `GRADED` submissions contribute their actual final score and `NO_SUBMISSION` records contribute zero, so a student who missed an assignment sees their overall average penalised accordingly. The per-assignment endpoint (`GET /api/statistics/students/{studentId}/courses/{courseId}/assignments`) returns the student's individual final score for each released assignment.

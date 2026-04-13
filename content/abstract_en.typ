@@ -1,4 +1,5 @@
-Note:
-  1. *paragraph:* What is the motivation of your thesis? Why is it interesting from a scientific point of view? Which main problem do you like to solve?
-  2. *paragraph:* What is the purpose of the document? What is the main content, the main contribution?
-  3. *paragraph:* What is your methodology? How do you proceed?
+Running peer review in large university courses requires fair reviewer allocation, strict deadline enforcement, and guaranteed anonymity between authors and reviewers — tasks that manual processes cannot sustain reliably at scale. At TUM, the absence of dedicated backend infrastructure forces instructors to handle these steps through disconnected tools, introducing inconsistency and significant overhead.
+
+This thesis designs and implements the TUMPeer backend: a REST API and PostgreSQL database that automates the peer review lifecycle for TUM courses. The three central contributions are automatic and equitable reviewer allocation using a load-balanced algorithm with a rotating tiebreaker, double-blind anonymity enforced at the API level throughout the entire workflow, and a background scheduler that drives all deadline-based status transitions without instructor intervention.
+
+The backend is built on a four-layer Spring Boot architecture and applies a ±20 percentage-point outlier detection rule during grade calculation. It satisfies all ten functional requirements defined for the project, verified by a unit test suite covering the service layer independently of the HTTP and persistence layers.

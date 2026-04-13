@@ -20,9 +20,15 @@
 )
 
 #include "/content/introduction.typ"
+#pagebreak()
 #include "/content/background.typ"
+#pagebreak()
 #include "/content/related_work.typ"
+#pagebreak()
 #include "/content/requirements.typ"
+#pagebreak()
 #include "/content/system_design.typ"
+#pagebreak()
 #include "/content/implementation.typ"
+#pagebreak()
 #include "/content/summary.typ"

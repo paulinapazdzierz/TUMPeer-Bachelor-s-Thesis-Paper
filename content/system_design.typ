@@ -27,21 +27,19 @@ Design goals translate the quality attributes from Chapter 4 into concrete archi
 
 *DG4 -- Relational Data Model with Schema Versioning.* The backend persists all application state in a normalised PostgreSQL schema that Flyway manages through versioned migrations. This satisfies QA3 (correctness) by enforcing referential integrity at the database level and provides a reproducible schema evolution history. The trade-off is the overhead of schema migration management compared to a schema-less approach.
 
-== Subsystem Decomposition
+== Subsystem Decomposition <sec-subsystem-decomposition>
 
 The deployment context diagram below shows the operational environment in which the backend runs: HTTP requests arrive through an NGINX reverse proxy, the backend communicates with a PostgreSQL database, and it sends email through Gmail SMTP. The configuration of the reverse proxy and the deployment infrastructure are outside the scope of this thesis. The same applies to the React frontend, which consumes the backend API but whose implementation is not covered here. The remainder of this section describes the internal structure of the backend exclusively.
 
-#placeholder(
-  "Deployment context of the TUMPeer backend. The Spring Boot application runs inside a Docker container and is reached through an NGINX reverse proxy. It communicates with a PostgreSQL database container, sends email via Gmail SMTP, and stores uploaded submission files in a Docker volume (uploads_data). The configuration of NGINX, Docker, and the deployment infrastructure are outside the scope of this thesis.",
-  short: "Deployment context of the TUMPeer backend",
+#pagebreak()
+#diagram(
+  pad(bottom: 1em, image("/figures/componentdagramfinal.drawio.png", width: 100%)),
+  caption: "Deployment context of the TUMPeer backend. The Spring Boot application runs inside a Docker container and is reached through an NGINX reverse proxy. It communicates with a PostgreSQL database container, sends email via Gmail SMTP, and stores uploaded submission files in a Docker volume (uploads_data). The configuration of NGINX, Docker, and the deployment infrastructure are outside the scope of this thesis.",
+  short-caption: "Deployment context of the TUMPeer backend",
 )
+#pagebreak()
 
-The backend is structured as a four-layer architecture. Each incoming HTTP request traverses the layers from top to bottom; responses travel back in the opposite direction.
-
-#placeholder(
-  "Layered architecture of the TUMPeer backend. The four horizontal layers -- Security, Controller, Service, and Repository -- handle authentication and rate limiting, HTTP routing, business logic, and database access respectively. The email subsystem (Spring Mail / Gmail SMTP) and the file storage subsystem (Docker volume) span multiple layers as cross-cutting concerns.",
-  short: "Layered backend architecture",
-)
+The backend is structured as a four-layer architecture, visible in Figure 2 within the `spring_backend` component. Each incoming HTTP request traverses the layers from top to bottom; responses travel back in the opposite direction.
 
 The *Security Layer* uses Spring Security to handle every request before it reaches any application logic. It validates the JSESSIONID session cookie, establishes the authenticated principal in the security context, and enforces CORS policy. Rate limiting runs at the filter level via Bucket4j: the login endpoint (`/api/auth/login`) allows at most 20 requests per minute per IP; all other API endpoints allow at most 200 requests per minute per IP. HTTPS termination and IP-level rate limiting are handled by the NGINX reverse proxy in front of the backend, so the security layer deals only with application-level concerns.
 
@@ -51,16 +49,19 @@ The *Service Layer* contains all business logic. This includes the review alloca
 
 The *Repository Layer* provides access to the PostgreSQL database through Spring Data JPA. Each repository interface declares the queries needed by the service layer. Hibernate translates repository calls to SQL and manages the object-relational mapping between Java entities and database tables.
 
-Two cross-cutting subsystems operate across layers. The *email subsystem* uses Spring Mail connected to a Gmail SMTP account to send account verification codes and password reset tokens. The authentication service invokes it synchronously; a failure propagates as an exception and aborts the current request. The *file storage subsystem* writes uploaded submission files to a directory on disk (`/app/uploads`) that is backed by a Docker volume (`uploads_data`). Files are named `{uuid}_{originalName}` to prevent collisions and path traversal. The submission service writes and deletes files; the submission controller streams them back to clients on download and view requests.
+Two cross-cutting subsystems operate across layers. The *email subsystem* uses Spring Mail connected to a Gmail SMTP account to send account verification codes and password reset tokens. The authentication service invokes it synchronously; a failure propagates as an exception and aborts the current request. The *file storage subsystem* writes uploaded submission files to a directory on disk (`/app/uploads`) that is backed by a Docker volume (`uploads_data`). Files are named `{uuid}_{originalName}` to prevent filename collisions. The submission service writes and deletes files; the submission controller streams them back to clients on download and view requests.
 
-== Persistent Data Management
+== Persistent Data Management <sec-data-model>
 
 The backend persists all application state in a PostgreSQL 17 database. Flyway manages the schema by applying versioned SQL migration scripts on application startup. This guarantees a reproducible schema at every deployment and provides a full history of schema changes. Hibernate, configured through Spring Data JPA, maps the relational schema to Java entity classes and translates JPQL and method-name-derived queries to SQL.
 
-#placeholder(
-  "Entity model of the TUMPeer backend. The diagram shows all eleven entities (AppUser, Course, CourseMember, Assignment, Rubric, RubricQuestion, Submission, SubmissionGrade, ReviewAssignment, Review, ReviewScore) and their relationships.",
-  short: "TUMPeer entity model",
+#pagebreak()
+#diagram(
+  pad(bottom: 1em, image("/figures/tumpeer-er-diagram-TUMPeer ER Diagram.drawio.png", width: 120%)),
+  caption: "Entity model of the TUMPeer backend. The diagram shows all eleven entities (AppUser, Course, CourseMember, Assignment, Rubric, RubricQuestion, Submission, SubmissionGrade, ReviewAssignment, Review, ReviewScore) and their relationships.",
+  short-caption: "TUMPeer entity model",
 )
+#pagebreak()
 
 The domain model consists of eleven entities. `AppUser` represents a platform user with a TUM email address, a matriculation identifier, and a global role. `Course` groups assignments under a semester context. `CourseMember` is a join entity that records the role a specific user holds in a specific course; its primary key is the composite of `courseId` and `userId`. This design allows a user to hold different roles in different courses simultaneously.
 
@@ -72,7 +73,7 @@ The domain model consists of eleven entities. `AppUser` represents a platform us
 
 The backend stores and serialises all timestamp columns in the Europe/Berlin timezone, configured through the Hibernate JDBC timezone property and the Jackson serialiser. Deadline comparisons in the scheduler and in the submission controller use `LocalDateTime.now(ZoneId.of("Europe/Berlin"))` to ensure consistent behaviour across daylight saving time transitions.
 
-== Access Control
+== Access Control <sec-access-control>
 
 TUMPeer uses two roles: STUDENT and INSTRUCTOR. Roles are scoped to individual courses: a user may be an INSTRUCTOR in one course and a STUDENT in another. This design directly supports the tutor role common in university settings, where a teaching assistant manages a course section while simultaneously attending another as a student. Each role grants a distinct set of permissions within that course: INSTRUCTOR members create and manage assignments, trigger grade release, and view aggregate statistics, while STUDENT members submit work, conduct peer reviews, and view their own results. A user who holds both roles across different courses receives the corresponding permissions and interface view for each course independently. In addition, each `AppUser` record carries a `globalRole` field that reflects the highest role the user holds across all their course memberships. The `globalRole` is recalculated whenever a course membership is created or deleted.
 
@@ -82,7 +83,7 @@ Session management applies several constraints derived from FR2. The backend bin
 
 The backend implements rate limiting at the filter level using Bucket4j with a Caffeine-backed in-memory cache keyed by client IP address. The login endpoint (`/api/auth/login`) is limited to 20 requests per minute per IP; all other API endpoints share a separate bucket capped at 200 requests per minute per IP. The filter extracts the client IP address from request headers, checking `X-Forwarded-For` and `X-Real-IP` before falling back to the direct remote address. Buckets evict from the cache after 10 minutes of inactivity to prevent unbounded memory growth.
 
-== Software Control Flow
+== Software Control Flow <sec-control-flow>
 
 The backend responds to two categories of triggers: HTTP requests from clients, and scheduled tasks driven by an internal timer.
 
@@ -93,6 +94,8 @@ A separate component, `SubmissionStatusScheduler`, annotated with Spring's `@Sch
 - For assignments whose submission deadline has passed: transitions each `SUBMITTED` submission to `UNDER_REVIEW` and each `PENDING` submission to `NO_SUBMISSION`.
 - For assignments whose submission deadline has passed and for which no review assignments have been created yet: runs the review allocation algorithm automatically, without requiring instructor intervention.
 - For assignments whose review deadline has passed: transitions each `"READY FOR REVIEW"` review assignment to `"NO REVIEW SUBMITTED"`; for `"DRAFT REVIEW"` assignments, clears the saved answer content and likewise transitions the status to `"NO REVIEW SUBMITTED"`.
+
+The complete set of status values and the transitions between them is shown in @fig-status-diagram.
 
 This design decouples time-based logic from the request path entirely. A client can submit their work at any point during the submission window; the scheduler will move it to the correct next state at the appropriate time, regardless of whether any client is active at that moment. The 60-second polling interval means that status transitions occur within at most one minute of a deadline, which is an acceptable latency for an academic workflow.
 

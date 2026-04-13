@@ -52,7 +52,7 @@ The following ten requirements define the capabilities the backend must provide.
 
 *C1 -- TUM Identity.* The system accepts only email addresses that match the `@tum.de` or `@mytum.de` domain. Registration attempts with any other email format are rejected.
 
-*C2 -- Reviewer Anonymity.* The system shall not expose reviewer identities to submission authors at any point in the workflow. Students see a reviewer label (e.g., Reviewer #2) in place of the actual reviewer name.
+*C2 -- Double-Blind Anonymity.* The system shall not expose reviewer identities to submission authors, nor expose submission author identities to reviewers, at any point in the workflow. Submission authors see a reviewer label (e.g., Reviewer #2) in place of the actual reviewer name; reviewers receive their assigned review task without the submission identifier or any student-identifying information.
 
 *C3 -- Hard Deadline Enforcement.* The submission and review windows are hard boundaries. The backend returns HTTP 403 for any upload or review submission that falls outside the configured window.
 
@@ -61,21 +61,16 @@ The following ten requirements define the capabilities the backend must provide.
 *C5 -- File Format and Size.* Uploaded submission files must be in PDF format. The file size must not exceed the per-assignment maximum, up to an absolute limit of 50 MB enforced at the server level.
 
 == System Models
-#TODO[
-  Introduce the system models that capture the key behavioral and structural aspects of the backend.
-]
+
+This section presents the use case model that captures the functional scope of the backend from the perspective of its two actors. Further system models — the entity model and the deployment context diagram — are presented in Chapter 5, where they serve as the foundation for the architectural design.
 
 === Use Case Model
-#TODO[
-  Include a UML Use Case Diagram showing the two actors (Student, Instructor) and their use cases. Key use cases: Register, Login, Create Assignment, Submit Work, Conduct Review, Release Grades, View Results. Describe the rationale of the model.
-]
 
-=== Analysis Object Model
-#TODO[
-  Include a UML Class Diagram of the domain model (application domain only, no Spring/JPA specifics). Key entities: AppUser, Course, CourseMember, Assignment, Rubric, RubricQuestion, Submission, ReviewAssignment, Review, ReviewScore, SubmissionGrade. Describe relationships and rationale.
-]
+#import "/utils/diagram.typ": diagram
+#diagram(
+  image("/figures/use_case_diagram.drawio.png", width: 100%),
+  caption: "Use case model of TUMPeer. The two actors — Student and Instructor — interact with the system through distinct sets of use cases covering registration, submission, peer review, and grade management.",
+  short-caption: "TUMPeer use case model",
+)
 
-=== Dynamic Model
-#TODO[
-  Include UML activity or state diagrams (no sequence diagrams). Show the two status state machines: Submission lifecycle (NOT_STARTED -> PENDING -> SUBMITTED -> UNDER_REVIEW -> GRADED / NO_SUBMISSION) and Review lifecycle (READY_FOR_REVIEW -> DRAFT_REVIEW -> REVIEW_SUBMITTED / NO_REVIEW_SUBMITTED). Describe how the scheduler drives automatic transitions.
-]
+The use case model captures the functional boundary of the TUMPeer backend from the perspective of its two actors. The Student actor covers all actions a course member with the STUDENT role may perform: registering an account, logging in, uploading a submission within the submission window, conducting assigned peer reviews, and viewing received feedback and final grades after release. The Instructor actor covers course and assignment management, rubric configuration, manual review allocation when needed, instructor scoring of submissions, and grade release. Both actors share the authentication use cases (register, login, reset password). The model reflects the role-scoped access control described in the constraints: every use case is accessible only to the actor whose role grants the required permission in the relevant course.

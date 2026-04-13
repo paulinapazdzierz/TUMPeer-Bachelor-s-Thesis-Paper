@@ -7,10 +7,140 @@ bruegge2004object:
   date: 2009
   publisher: Prentice Hall
 
-mustermann2020design:
+berrezueta2025coders:
+  type: proceedings
+  title: "From Coders to Critics: Empowering Students through Peer Assessment in the Age of AI Copilots"
+  author:
+    - Berrezueta-Guzman, Santiago
+    - Krusche, Stephan
+    - Wagner, Stefan
+  date: 2025
+  parent:
+    type: proceedings
+    title: Proceedings of the 11th International Symposium on Educational Technology (ISET)
+    location: Bangkok, Thailand
+  doi: 10.48550/arXiv.2505.22093
+
+fielding2000architectural:
   type: thesis
-  title: "Design and Implementation of a Scalable Microservice Architecture"
-  author: Max Mustermann
-  genre: Master Thesis
-  publisher: Technical University of Munich
-  date: 2020 
+  title: Architectural Styles and the Design of Network-based Software Architectures
+  author: Fielding, Roy Thomas
+  date: 2000
+  genre: Doctoral Dissertation
+  publisher: University of California, Irvine
+
+topping1998peer:
+  type: article
+  title: Peer Assessment Between Students in Colleges and Universities
+  author: Topping, Keith
+  date: 1998
+  parent:
+    type: periodical
+    title: Review of Educational Research
+    volume: 68
+    issue: 3
+  page-range: 249-276
+  doi: 10.3102/00346543068003249
+
+falchikov2000student:
+  type: article
+  title: "Student Peer Assessment in Higher Education: A Meta-Analysis Comparing Peer and Teacher Marks"
+  author:
+    - Falchikov, Nancy
+    - Goldfinch, Judy
+  date: 2000
+  parent:
+    type: periodical
+    title: Review of Educational Research
+    volume: 70
+    issue: 3
+  page-range: 287-322
+  doi: 10.3102/00346543070003287
+
+krusche2018artemis:
+  type: proceedings
+  title: "ArTEMiS: An Automatic Assessment Management System for Interactive Learning"
+  author:
+    - Krusche, Stephan
+    - Seitz, Andreas
+  date: 2018
+  parent:
+    type: proceedings
+    title: Proceedings of the 49th ACM Technical Symposium on Computer Science Education (SIGCSE)
+    location: Baltimore, MD, USA
+  page-range: 284-289
+  doi: 10.1145/3159450.3159602
+
+kulkarni2013peer:
+  type: article
+  title: Peer and Self Assessment in Massive Online Classes
+  author:
+    - Kulkarni, Chinmay
+    - Wei, Koh Pang
+    - Le, Huy
+    - Chia, Daniel
+    - Papadopoulos, Kathryn
+    - Cheng, Justin
+    - Koller, Daphne
+    - Klemmer, Scott R.
+  date: 2013
+  parent:
+    type: periodical
+    title: ACM Transactions on Computer-Human Interaction
+    volume: 20
+    issue: 6
+  page-range: 33:1-33:31
+  doi: 10.1145/2505057
+
+piech2013tuned:
+  type: article
+  title: Tuned Models of Peer Assessment in MOOCs
+  author:
+    - Piech, Chris
+    - Huang, Jonathan
+    - Chen, Zhenghao
+    - Do, Chuong B.
+    - Ng, Andrew
+    - Koller, Daphne
+  date: 2013
+  parent:
+    type: periodical
+    title: arXiv preprint
+  serial-number:
+    arxiv: 1307.2579
+
+fowler2002patterns:
+  type: book
+  title: Patterns of Enterprise Application Architecture
+  author: Fowler, Martin
+  date: 2002
+  publisher: Addison-Wesley
+
+panadero2019anonymity:
+  type: article
+  title: "An Empirical Review of Anonymity Effects in Peer Assessment, Peer Feedback, Peer Review, Peer Evaluation and Peer Grading"
+  author:
+    - Panadero, Ernesto
+    - Alqassab, Maryam
+  date: 2019
+  parent:
+    type: periodical
+    title: Assessment & Evaluation in Higher Education
+    volume: 44
+    issue: 8
+  page-range: 1253-1278
+  doi: 10.1080/02602938.2019.1600186
+
+rod2022doubleblind:
+  type: article
+  title: "Double-Blind Multiple Peer Reviews to Change Students' Reading Behaviour and Help Them Develop Their Writing Skills"
+  author:
+    - Rød, Jan Ketil
+    - Nubdal, Marte
+  date: 2022
+  parent:
+    type: periodical
+    title: Journal of Geography in Higher Education
+    volume: 46
+    issue: 2
+  doi: 10.1080/03098265.2021.1901265

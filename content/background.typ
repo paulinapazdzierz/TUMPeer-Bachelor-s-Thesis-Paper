@@ -1,31 +1,27 @@
-#import "/utils/todo.typ": TODO
-
 = Background
-#TODO[
-  Introduce the key concepts and technologies needed to understand this thesis. Each subsection covers one concept: what it is, why it matters for TUMPeer, and relevant literature.
-]
 
-== Peer Review in Education
-#TODO[
-  Summarize the concept of peer assessment in educational contexts. Define rubric-based peer review and explain how anonymous peer grading reduces bias. Reference key literature including Berrezueta-Guzman et al. ("From Coders to Critics"). Explain the role of automated systems in making peer review scalable.
-]
+This chapter introduces the concepts and technologies that underpin the TUMPeer backend. Each section describes what a concept is, explains its relevance to TUMPeer, and identifies the authoritative literature from which this thesis draws.
+
+== Peer Assessment in Education
+
+Peer assessment is a practice in which students evaluate each other's work using defined criteria and provide scores or feedback based on that evaluation. Topping @topping1998peer defines it as an arrangement in which individuals consider the amount, level, value, or quality of products or outcomes of their peers of similar status and provide feedback accordingly. The practice serves two complementary educational functions simultaneously: students who receive peer feedback gain additional perspectives on their work beyond what a single instructor can provide for an entire course cohort; students who give feedback develop evaluative judgment by applying criteria to artefacts other than their own.
+
+For peer scores to contribute reliably to final grades, two structural conditions must hold. First, the evaluation criteria must be explicit and criterion-referenced. Falchikov and Goldfinch @falchikov2000student demonstrate in a meta-analysis of 48 higher education studies that peer grades align more closely with instructor grades when structured rubrics provide scoring criteria than when assessors exercise holistic judgment. The difference is substantial: explicit criteria increase inter-rater agreement and reduce the influence of social bias on individual evaluations. Second, the process must preserve mutual anonymity. When reviewers know the identity of the submission author — or when authors know who reviewed them — evaluations may reflect interpersonal relationships rather than the quality of the submitted work. Panadero and Alqassab @panadero2019anonymity review 14 controlled studies of anonymity effects in peer assessment and find that anonymity consistently produces more candid and accurate feedback and reduces the influence of social proximity on scores; double-blind designs — where neither party knows the other's identity — yield the strongest effects. Rød and Nubdal @rod2022doubleblind confirm this in a course-level study: replacing a final exam with a double-blind multiple-peer-review assignment improved both students' reading behaviour and their writing quality, with participants crediting the anonymity of the process for the frankness of the feedback they received.
+
+Berrezueta-Guzman, Krusche, and Wagner @berrezueta2025coders apply both conditions in a large introductory programming course at TUM. Students used a detailed rubric to evaluate 2D game projects produced by peer teams. The study reports a Pearson correlation of $r = 0.55$ between peer scores and instructor scores, with a root mean square error (RMSE) of 14.87 for the first assigned reviewer, indicating moderate grading accuracy under structured conditions. A post-assessment survey finds that 83 percent of students enjoyed the evaluator role and that most teams considered the peer evaluations fair. These results from TUM's own instructional context directly motivate the design choices in TUMPeer: rubric-based scoring as the sole quantitative evaluation mechanism and double-blind anonymity enforced at the API level.
 
 == Representational State Transfer
-#TODO[
-  Describe the REST architectural style: stateless communication, resource-based endpoints, HTTP methods (GET, POST, PUT, DELETE). Explain why REST is a suitable choice for the TUMPeer backend API. Reference Fielding's original dissertation or a well-established textbook.
-]
+
+Representational State Transfer (REST) is an architectural style for distributed hypermedia systems defined by Fielding @fielding2000architectural, in which a client communicates with a server through a uniform interface of standard HTTP methods and each request carries all the information needed to process it. TUMPeer exposes a REST API that the React frontend consumes; the stateless request model supports horizontal scaling because no server-side affinity is required for ordinary operations.
 
 == Layered Software Architecture
-#TODO[
-  Explain the layered architecture pattern (Presentation / API / Service / Repository). Describe how each layer has a defined responsibility and how this promotes separation of concerns, testability, and maintainability. Reference Bruegge and Dutoit @bruegge2004object.
-]
+
+A layered architecture organises a system into horizontal tiers, each with a single defined responsibility that communicates only with the tier directly below it @bruegge2004object. The pattern enforces separation of concerns, bounds the impact of any change to a single layer, and makes each layer independently testable. How TUMPeer applies this pattern is described in @sec-subsystem-decomposition.
 
 == Spring Boot and Java Persistence
-#TODO[
-  Briefly introduce Spring Boot as a framework for building REST APIs in Java. Describe the role of Spring Security for authentication, Spring Data JPA and Hibernate for object-relational mapping, and Flyway for database schema migrations.
-]
+
+Spring Boot is an opinionated configuration layer for the Spring Framework that auto-configures components and produces self-contained executable JARs; TUMPeer uses Spring Boot 3 on Java 21. Spring Security manages authentication and authorisation at the HTTP filter level, maintaining session state through an HTTP-only cookie and enforcing per-course role checks at each endpoint. Spring Data JPA, backed by Hibernate, provides a typed repository abstraction that maps Java entity classes to database tables and translates repository method declarations to SQL. Flyway applies versioned SQL migration scripts on startup, guaranteeing that every environment runs against the same schema without manual database administration.
 
 == PostgreSQL and Relational Data Modeling
-#TODO[
-  Introduce PostgreSQL as a relational database management system. Explain entity relationships, foreign keys, and how relational modeling maps to the domain of peer review (users, courses, assignments, submissions, reviews).
-]
+
+PostgreSQL is an open-source relational database with full SQL and ACID transaction support, which guarantees that concurrent operations do not corrupt shared state. TUMPeer uses PostgreSQL 17; the hierarchical structure of academic data maps naturally to a relational schema enforced by foreign-key constraints, as described in @sec-data-model.
