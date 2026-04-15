@@ -92,22 +92,17 @@ kulkarni2013peer:
   page-range: 33:1-33:31
   doi: 10.1145/2505057
 
-piech2013tuned:
-  type: article
-  title: Tuned Models of Peer Assessment in MOOCs
+raman2014ordinal:
+  type: proceedings
+  title: Methods for Ordinal Peer Grading
   author:
-    - Piech, Chris
-    - Huang, Jonathan
-    - Chen, Zhenghao
-    - Do, Chuong B.
-    - Ng, Andrew
-    - Koller, Daphne
-  date: 2013
+    - Raman, Karthik
+    - Joachims, Thorsten
+  date: 2014
   parent:
-    type: periodical
-    title: arXiv preprint
-  serial-number:
-    arxiv: 1307.2579
+    type: proceedings
+    title: Proceedings of the 20th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining
+    location: New York, NY, USA
 
 fowler2002patterns:
   type: book
@@ -116,20 +111,65 @@ fowler2002patterns:
   date: 2002
   publisher: Addison-Wesley
 
-panadero2019anonymity:
+cho2010revision:
   type: article
-  title: "An Empirical Review of Anonymity Effects in Peer Assessment, Peer Feedback, Peer Review, Peer Evaluation and Peer Grading"
+  title: Student revision with peer and expert reviewing
+  author:
+    - Cho, Kwangsu
+    - MacArthur, Charles
+  date: 2010
+  parent:
+    type: periodical
+    title: Learning and Instruction
+    volume: 20
+    issue: 4
+  page-range: 328-338
+  doi: 10.1016/j.learninstruc.2009.08.006
+
+panadero2023rubrics:
+  type: article
+  title: "Effects of rubrics on academic performance, self-regulated learning, and self-efficacy: a meta-analytic review"
   author:
     - Panadero, Ernesto
-    - Alqassab, Maryam
-  date: 2019
+    - Jonsson, Anders
+    - Pinedo, Laura
+    - Fernández-Castilla, Belén
+  date: 2023
+  parent:
+    type: periodical
+    title: Educational Psychology Review
+    volume: 35
+
+nicol2010monologue:
+  type: article
+  title: "From monologue to dialogue: improving written feedback processes in mass higher education"
+  author: Nicol, David
+  date: 2010
   parent:
     type: periodical
     title: Assessment & Evaluation in Higher Education
-    volume: 44
-    issue: 8
-  page-range: 1253-1278
-  doi: 10.1080/02602938.2019.1600186
+    volume: 35
+    issue: 5
+  page-range: 501-517
+  doi: 10.1080/02602931003786559
+
+tai2018evaluative:
+  type: article
+  title: "Developing evaluative judgement: enabling students to make decisions about the quality of work"
+  author:
+    - Tai, Joanna
+    - Ajjawi, Rola
+    - Boud, David
+    - Dawson, Phillip
+    - Panadero, Ernesto
+  date: 2018
+  parent:
+    type: periodical
+    title: Higher Education
+    volume: 76
+    issue: 3
+  page-range: 467-481
+  doi: 10.1007/s10734-017-0220-3
 
 rod2022doubleblind:
   type: article
@@ -144,3 +184,120 @@ rod2022doubleblind:
     volume: 46
     issue: 2
   doi: 10.1080/03098265.2021.1901265
+
+brown2019peer:
+  type: proceedings
+  title: Using Peer Code Review to Support Pedagogy in an Introductory Computer Programming Course
+  author:
+    - Brown, Brenae
+    - Narasareddy gari, Vijay Lakshmi
+    - Singh, Gurdeep
+    - Walia, Gursimran
+  date: 2019
+  parent:
+    type: proceedings
+    title: Proceedings of the IEEE Frontiers in Education Conference (FIE)
+    location: Cincinnati, OH, USA
+  publisher: IEEE
+
+indriasari2020review:
+  type: article
+  title: A Review of Peer Code Review in Higher Education
+  author:
+    - Indriasari, Theresia Devi
+    - Luxton-Reilly, Andrew
+    - Denny, Paul
+  date: 2020
+  parent:
+    type: periodical
+    title: ACM Transactions on Computing Education
+    volume: 20
+    issue: 3
+  page-range: 22:1-22:25
+  doi: 10.1145/3403935
+
+provos1999bcrypt:
+  type: proceedings
+  title: A Future-Adaptable Password Scheme
+  author:
+    - Provos, Niels
+    - Mazières, David
+  date: 1999
+  parent:
+    type: proceedings
+    title: Proceedings of the 1999 USENIX Annual Technical Conference
+    location: Monterey, CA, USA
+  publisher: USENIX Association
+
+aggarwal2017outlier:
+  type: book
+  title: Outlier Analysis
+  author: Aggarwal, Charu C.
+  date: 2017
+  edition: 2
+  publisher: Springer
+
+buschmann1996posa:
+  type: book
+  title: "Pattern-Oriented Software Architecture, Volume 1: A System of Patterns"
+  author:
+    - Buschmann, Frank
+    - Meunier, Regine
+    - Rohnert, Hans
+    - Sommerlad, Peter
+    - Stal, Michael
+  date: 1996
+  publisher: Wiley
+
+hanrahan2001peer:
+  type: article
+  title: "Assessing self- and peer-assessment: the students' views"
+  author:
+    - Hanrahan, Stephanie J.
+    - Isaacs, Geoff
+  date: 2001
+  parent:
+    type: periodical
+    title: Higher Education Research & Development
+    volume: 20
+    issue: 1
+  page-range: 53-70
+  doi: 10.1080/07294360123776
+
+sondergaard2012collaborative:
+  type: article
+  title: "Collaborative learning through formative peer review: pedagogy, programs and potential"
+  author:
+    - Søndergaard, Harald
+    - Mulder, Raoul A.
+  date: 2012
+  parent:
+    type: periodical
+    title: Computer Science Education
+    volume: 22
+    issue: 4
+  page-range: 343-367
+  doi: 10.1080/08993408.2012.728041
+
+strickroth2019peer:
+  type: proceedings
+  title: Does Peer Code Review Change My Mind on My Submission?
+  author: Strickroth, Sven
+  date: 2019
+  parent:
+    type: proceedings
+    title: Proceedings of the 19th Koli Calling International Conference on Computing Education Research
+    location: Koli, Finland
+  publisher: ACM
+
+bradley2019bias:
+  type: proceedings
+  title: Addressing bias to improve reliability in peer review of programming coursework
+  author:
+    - Bradley, Steven
+  date: 2019
+  parent:
+    type: proceedings
+    title: Proceedings of the 19th Koli Calling International Conference on Computing Education Research
+  page-range: 1-10
+

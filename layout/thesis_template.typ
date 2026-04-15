@@ -85,9 +85,11 @@
   set heading(numbering: "1.1")
   show heading.where(level: 1): it => {
     it
-    v(-0.4em)
-    line(length: 100%, stroke: 0.5pt)
-    v(0.3em)
+    if it.numbering != none {
+      v(-0.4em)
+      line(length: 100%, stroke: 0.5pt)
+      v(0.3em)
+    }
   }
   // Reference first-level headings as "chapters"
   show ref: it => {
@@ -148,10 +150,16 @@
       let chapter_starts_here = query(heading.where(level: 1)).any(h => h.location().page() == current_page)
       if headings.len() > 0 and not chapter_starts_here {
         let h = headings.last()
-        let num = counter(heading).at(h.location()).first()
-        text(size: 0.85em, fill: luma(80))[
-          #num #h.body
-        ]
+        if h.numbering != none {
+          let num = counter(heading).at(h.location()).first()
+          text(size: 0.85em, fill: luma(80))[
+            #num #h.body
+          ]
+        } else {
+          text(size: 0.85em, fill: luma(80))[
+            #h.body
+          ]
+        }
         v(-0.6em)
         line(length: 100%, stroke: 0.4pt + luma(150))
       }
@@ -188,5 +196,5 @@
   ]
 
   pagebreak()
-  bibliography("/thesis.yml")
+  bibliography("/thesis.yml", title: heading(numbering: none)[Bibliography])
 }

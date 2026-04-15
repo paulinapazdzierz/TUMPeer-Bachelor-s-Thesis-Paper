@@ -57,7 +57,7 @@ The backend persists all application state in a PostgreSQL 17 database. Flyway m
 
 #pagebreak()
 #diagram(
-  pad(bottom: 1em, image("/figures/tumpeer-er-diagram-TUMPeer ER Diagram.drawio.png", width: 120%)),
+  pad(bottom: 1em, image("/figures/finaltumpeer-er-diagram-TUMPeer ER Diagram.drawio.png", width: 120%)),
   caption: "Entity model of the TUMPeer backend. The diagram shows all eleven entities (AppUser, Course, CourseMember, Assignment, Rubric, RubricQuestion, Submission, SubmissionGrade, ReviewAssignment, Review, ReviewScore) and their relationships.",
   short-caption: "TUMPeer entity model",
 ) <fig-er-diagram>
